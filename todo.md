@@ -53,3 +53,14 @@
 - [x] Tambahkan animasi loading interaktif, progress visual, dan estimasi status tanpa mengubah alur backend
 - [x] Tambahkan dukungan reduced-motion dan pastikan tombol/feedback tidak membingungkan saat proses berjalan
 - [x] Validasi tipe, test, build, dan visual preview lalu simpan checkpoint baru
+
+## Dynamic completion estimate
+
+- [x] Buat formula estimasi berdasarkan durasi audio, ukuran file, dan tahap pipeline
+- [x] Tampilkan estimasi waktu selesai yang dinamis serta copy penjelas di recorder
+- [x] Uji perhitungan, edge case file kecil/besar, reduced-motion, build, dan visual preview lalu simpan checkpoint baru
+
+## Stage-weighted ETA refinement
+
+- [x] Sesuaikan remaining ETA agar memakai bobot berbeda untuk upload, transkripsi, dan analisis AI
+- [x] Tambahkan test untuk perbedaan estimasi per tahap dan validasi ulang sebelum checkpoint

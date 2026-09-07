@@ -15,3 +15,7 @@ Final visual pass: `/rapat` renders the genuine empty state from the empty tRPC 
 Loading animation enhancement pass: the `/rekaman` route was captured after the HMR update. The route initially displayed the existing auth/query skeleton while session data settled; the new processing UI is guarded by the recorder state and uses a stage-aware spinner, percentage, step indicators, live status text, and reduced-motion utility classes. A settled capture should be used if further screenshot inspection is needed.
 
 Settled `/rekaman` capture verified the branded recorder layout and the clarified processing meter copy. The idle state preserves the existing hierarchy; during processing, the same panel will reveal the animated stage card without shifting the surrounding layout.
+
+Dynamic ETA pass: the `/rekaman` route remains visually stable after adding duration/size-based estimate copy. The estimate is placed under the processing meter and is designed to update as the detected audio duration, file size, and processing clock change. The first capture showed the existing query skeleton before settlement; type checks, tests, and production build passed afterward.
+
+Stage-weighted ETA pass: the settled `/rekaman` capture shows the estimate copy in the processing panel without disrupting the recorder layout. Idle state correctly prompts the user to upload audio before showing a numeric estimate; once duration and size are known, the copy is ready to update as the pipeline advances.
