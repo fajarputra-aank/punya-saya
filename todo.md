@@ -46,3 +46,10 @@
 ## Activity chart refinement
 
 - [x] Ganti chart aktivitas hardcoded dengan empty state saat belum ada rapat atau data pemrosesan dari backend
+
+## Loading animation enhancement
+
+- [x] Tambahkan state tahap pemrosesan yang jelas untuk upload, transkripsi, dan analisis AI
+- [x] Tambahkan animasi loading interaktif, progress visual, dan estimasi status tanpa mengubah alur backend
+- [x] Tambahkan dukungan reduced-motion dan pastikan tombol/feedback tidak membingungkan saat proses berjalan
+- [x] Validasi tipe, test, build, dan visual preview lalu simpan checkpoint baru

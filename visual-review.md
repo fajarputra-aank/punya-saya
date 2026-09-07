@@ -11,3 +11,7 @@ After the Home.tsx restoration, the multi-route screenshot captured the Dashboar
 A follow-up single-route capture of `/` loaded successfully. The dashboard now renders with the branded sidebar, live backend-backed metric state (currently zero because the signed-in workspace has no persisted meetings yet), activity chart, and action-item panel. The earlier multi-route skeleton was capture timing while auth was settling.
 
 Final visual pass: `/rapat` renders the genuine empty state from the empty tRPC result, while `/rekaman` renders the browser recorder and audio upload surface with microphone-ready status. `/` can briefly show auth/query skeletons while the session settles, then resolves to the live workspace dashboard.
+
+Loading animation enhancement pass: the `/rekaman` route was captured after the HMR update. The route initially displayed the existing auth/query skeleton while session data settled; the new processing UI is guarded by the recorder state and uses a stage-aware spinner, percentage, step indicators, live status text, and reduced-motion utility classes. A settled capture should be used if further screenshot inspection is needed.
+
+Settled `/rekaman` capture verified the branded recorder layout and the clarified processing meter copy. The idle state preserves the existing hierarchy; during processing, the same panel will reveal the animated stage card without shifting the surrounding layout.
