@@ -1,5 +1,5 @@
-export type ProcessingStage = "idle" | "uploading" | "transcribing" | "analyzing" | "done";
-type ActiveProcessingStage = Exclude<ProcessingStage, "idle" | "done">;
+export type ProcessingStage = "idle" | "uploading" | "transcribing" | "analyzing" | "done" | "cancelled";
+type ActiveProcessingStage = Exclude<ProcessingStage, "idle" | "done" | "cancelled">;
 
 export function estimateProcessingSeconds(durationSeconds: number, sizeBytes: number) {
   const safeDuration = Number.isFinite(durationSeconds) ? Math.max(0, durationSeconds) : 0;
@@ -8,7 +8,7 @@ export function estimateProcessingSeconds(durationSeconds: number, sizeBytes: nu
 }
 
 export function estimateRemainingSeconds(totalSeconds: number, stage: ProcessingStage, progress: number, elapsedSeconds = 0) {
-  if (stage === "done") return 0;
+  if (stage === "done" || stage === "cancelled") return 0;
   if (stage === "idle") return Math.max(0, Math.round(totalSeconds));
 
   const weights: Record<ActiveProcessingStage, number> = { uploading: 0.2, transcribing: 0.45, analyzing: 0.35 };

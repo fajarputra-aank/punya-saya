@@ -11,6 +11,10 @@ import { createActionItem, createMeeting, deleteMeeting, getMeeting, listActionI
 const meetingStatus = z.enum(["scheduled", "processing", "completed", "archived"]);
 const actionPriority = z.enum(["low", "medium", "high"]);
 const actionStatus = z.enum(["todo", "in_progress", "done"]);
+const cancelledPipelines = new Set<string>();
+const pipelineKey = (userId: number, token: string) => `${userId}:${token}`;
+const isPipelineCancelled = (userId: number, token?: string) => Boolean(token && cancelledPipelines.has(pipelineKey(userId, token)));
+const assertPipelineActive = (userId: number, token?: string) => { if (isPipelineCancelled(userId, token)) throw new Error("__CANCELLED__"); };
 
 function parseModelContent(content: unknown) {
   if (typeof content === "string") return content;
@@ -27,6 +31,9 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+  }),
+  processing: router({
+    cancel: protectedProcedure.input(z.object({ token: z.string().min(16).max(180) })).mutation(({ ctx, input }) => { cancelledPipelines.add(pipelineKey(ctx.user.id, input.token)); return { success: true } as const; }),
   }),
   meetings: router({
     list: protectedProcedure.query(({ ctx }) => listMeetings(ctx.user.id)),
@@ -67,19 +74,23 @@ export const appRouter = router({
     update: protectedProcedure.input(z.object({ id: z.number().int().positive(), task: z.string().min(1).max(5000).optional(), pic: z.string().max(180).nullable().optional(), deadline: z.string().max(80).nullable().optional(), priority: actionPriority.optional(), status: actionStatus.optional() })).mutation(({ ctx, input }) => { const { id, ...data } = input; return updateActionItem(ctx.user.id, id, data); }),
   }),
   audio: router({
-    upload: protectedProcedure.input(z.object({ fileName: z.string().min(1).max(180), mimeType: z.string().max(100), data: z.string().min(1).max(24000000) })).mutation(async ({ ctx, input }) => {
+    upload: protectedProcedure.input(z.object({ fileName: z.string().min(1).max(180), mimeType: z.string().max(100), data: z.string().min(1).max(24000000), cancellationToken: z.string().min(16).max(180).optional() })).mutation(async ({ ctx, input }) => {
+      assertPipelineActive(ctx.user.id, input.cancellationToken);
       const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]+/g, "-");
       const bytes = Buffer.from(input.data, "base64");
       const stored = await storagePut(`audio/${ctx.user.id}/${Date.now()}-${safeName}`, bytes, input.mimeType || "audio/webm");
+      assertPipelineActive(ctx.user.id, input.cancellationToken);
       const signedUrl = await storageGetSignedUrl(stored.key);
       return { ...stored, signedUrl };
     }),
   }),
   transcription: router({
-    transcribe: protectedProcedure.input(z.object({ meetingId: z.number().int().positive(), audioUrl: z.string().url() })).mutation(async ({ ctx, input }) => {
+    transcribe: protectedProcedure.input(z.object({ meetingId: z.number().int().positive(), audioUrl: z.string().url(), cancellationToken: z.string().min(16).max(180).optional() })).mutation(async ({ ctx, input }) => {
+      assertPipelineActive(ctx.user.id, input.cancellationToken);
       const meeting = await getMeeting(ctx.user.id, input.meetingId);
       if (!meeting) throw new Error("Rapat tidak ditemukan");
       const result = await transcribeAudio({ audioUrl: input.audioUrl, language: "id", prompt: "Transkripsikan percakapan rapat dalam Bahasa Indonesia. Pertahankan timestamp dan pergantian pembicara bila tersedia." });
+      assertPipelineActive(ctx.user.id, input.cancellationToken);
       if ("error" in result) throw new Error(result.error);
       const transcriptPayload = JSON.stringify({ text: result.text, language: result.language, duration: result.duration, segments: result.segments ?? [] });
       await updateMeeting(ctx.user.id, input.meetingId, { audioUrl: input.audioUrl, transcript: transcriptPayload, status: "processing" });
@@ -87,7 +98,8 @@ export const appRouter = router({
     }),
   }),
   ai: router({
-    analyze: protectedProcedure.input(z.object({ meetingId: z.number().int().positive(), transcript: z.string().min(1).max(200000) })).mutation(async ({ ctx, input }) => {
+    analyze: protectedProcedure.input(z.object({ meetingId: z.number().int().positive(), transcript: z.string().min(1).max(200000), cancellationToken: z.string().min(16).max(180).optional() })).mutation(async ({ ctx, input }) => {
+      assertPipelineActive(ctx.user.id, input.cancellationToken);
       const meeting = await getMeeting(ctx.user.id, input.meetingId);
       if (!meeting) throw new Error("Rapat tidak ditemukan");
       const modelCatalog = await listLLMModels();
@@ -120,10 +132,13 @@ export const appRouter = router({
           },
         },
       });
+      assertPipelineActive(ctx.user.id, input.cancellationToken);
       const content = parseModelContent(response.choices?.[0]?.message?.content);
       if (!content) throw new Error("AI tidak mengembalikan analisis");
       const analysis = JSON.parse(content) as { summary: string; key_points: string[]; decisions: string[]; problems: string[]; action_items: Array<{ task: string; pic: string | null; deadline: string | null; priority: "low" | "medium" | "high"; status: "todo" | "in_progress" | "done" }>; follow_up: string[]; conclusion: string };
+      assertPipelineActive(ctx.user.id, input.cancellationToken);
       await updateMeeting(ctx.user.id, input.meetingId, { transcript: input.transcript, analysis: JSON.stringify(analysis), status: "completed" });
+      assertPipelineActive(ctx.user.id, input.cancellationToken);
       for (const item of analysis.action_items) await createActionItem({ ownerId: ctx.user.id, meetingId: input.meetingId, task: item.task, pic: item.pic ?? undefined, deadline: item.deadline ?? undefined, priority: item.priority, status: item.status });
       return analysis;
     }),

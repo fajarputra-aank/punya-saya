@@ -9,5 +9,6 @@ describe("feature router contracts", () => {
     expect(record.audio).toBeDefined();
     expect(record.transcription).toBeDefined();
     expect(record.ai).toBeDefined();
+    expect(record.processing).toBeDefined();
   });
 });

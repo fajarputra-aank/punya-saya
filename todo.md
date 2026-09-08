@@ -64,3 +64,10 @@
 
 - [x] Sesuaikan remaining ETA agar memakai bobot berbeda untuk upload, transkripsi, dan analisis AI
 - [x] Tambahkan test untuk perbedaan estimasi per tahap dan validasi ulang sebelum checkpoint
+
+## Processing cancellation
+
+- [x] Tambahkan state pembatalan dan AbortController untuk menghentikan request pipeline yang sedang berjalan
+- [x] Tambahkan tombol Batalkan dengan copy status yang jelas untuk transkripsi dan analisis AI
+- [x] Pastikan pembatalan mencegah langkah berikutnya, mereset ETA/progress, dan memberi feedback tanpa error palsu
+- [x] Tambahkan test cancellation behavior, jalankan check/test/build, verifikasi visual, lalu simpan checkpoint baru

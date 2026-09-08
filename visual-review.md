@@ -19,3 +19,9 @@ Settled `/rekaman` capture verified the branded recorder layout and the clarifie
 Dynamic ETA pass: the `/rekaman` route remains visually stable after adding duration/size-based estimate copy. The estimate is placed under the processing meter and is designed to update as the detected audio duration, file size, and processing clock change. The first capture showed the existing query skeleton before settlement; type checks, tests, and production build passed afterward.
 
 Stage-weighted ETA pass: the settled `/rekaman` capture shows the estimate copy in the processing panel without disrupting the recorder layout. Idle state correctly prompts the user to upload audio before showing a numeric estimate; once duration and size are known, the copy is ready to update as the pipeline advances.
+
+Cancellation pass: the `/rekaman` route preserves its existing recorder layout after adding the cancellation control. The cancel button is rendered only during active upload/transcription/analysis stages, while the cancelled state keeps the audio available for retry and resets progress/ETA. The captured route initially showed the standard auth/query skeleton before settlement; type checks, tests, and production build passed afterward.
+
+Server-aware cancellation pass: after the router restart, the `/rekaman` route still loads through its standard query/auth skeleton and retains the existing recorder composition. The cancel affordance is conditional to active processing and the cancelled state preserves retryable audio. Type check, 4 test files with 8 tests, and production build passed.
+
+Cancellation hardening: client-side AbortController now stops awaiting fetch/mutation results immediately, while a server cancellation token is sent to upload, transcription, and AI procedures. Procedures check the token before and after external work and before persisting meeting analysis/action items. The processing router contract is covered by Vitest.
