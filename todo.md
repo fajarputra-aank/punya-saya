@@ -71,3 +71,19 @@
 - [x] Tambahkan tombol Batalkan dengan copy status yang jelas untuk transkripsi dan analisis AI
 - [x] Pastikan pembatalan mencegah langkah berikutnya, mereset ETA/progress, dan memberi feedback tanpa error palsu
 - [x] Tambahkan test cancellation behavior, jalankan check/test/build, verifikasi visual, lalu simpan checkpoint baru
+
+## Reusable skill creation
+
+- [x] Ekstrak workflow reusable dari proses pembangunan Notulen AI menjadi instruksi skill yang ringkas dan dapat ditrigger dengan jelas
+- [x] Sertakan guardrail untuk autentikasi, data persisten, audio, transkripsi, analisis AI, pembatalan, ETA, testing, visual verification, dan checkpoint
+- [x] Inisialisasi, tulis, dan validasi paket skill sesuai panduan skill creator
+- [x] Serahkan SKILL.md sebagai artefak skill yang dapat ditambahkan ke My Skills
+
+## Production error 1101
+
+- [x] Kumpulkan log produksi dan reproduksi error Cloudflare 1101 pada domain notulenai-ctvhhwp8.manus.space
+- [x] Identifikasi akar masalah worker/runtime dan terapkan perbaikan yang aman
+- [x] Validasi type check, test, build, dan smoke test domain produksi
+- [ ] Simpan checkpoint perbaikan setelah domain kembali dapat diakses
+- [x] Catat bahwa error 1101 dari screenshot pengguna bersifat intermiten dan tidak terulang pada smoke test saat ini
+- [ ] Setelah checkpoint/deploy perbaikan, verifikasi ulang domain produksi untuk memastikan port binding tetap stabil
