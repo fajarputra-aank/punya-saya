@@ -84,6 +84,6 @@
 - [x] Kumpulkan log produksi dan reproduksi error Cloudflare 1101 pada domain notulenai-ctvhhwp8.manus.space
 - [x] Identifikasi akar masalah worker/runtime dan terapkan perbaikan yang aman
 - [x] Validasi type check, test, build, dan smoke test domain produksi
-- [ ] Simpan checkpoint perbaikan setelah domain kembali dapat diakses
+- [x] Simpan checkpoint perbaikan setelah domain kembali dapat diakses
 - [x] Catat bahwa error 1101 dari screenshot pengguna bersifat intermiten dan tidak terulang pada smoke test saat ini
-- [ ] Setelah checkpoint/deploy perbaikan, verifikasi ulang domain produksi untuk memastikan port binding tetap stabil
+- [x] Setelah checkpoint/deploy perbaikan, verifikasi ulang domain produksi untuk memastikan port binding tetap stabil
