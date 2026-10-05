@@ -8,9 +8,9 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 
-async function startServer() {
+export async function createApp(options: { serveFrontend?: boolean } = {}) {
   const app = express();
-  const server = createServer(app);
+  const serveFrontend = options.serveFrontend ?? true;
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -25,15 +25,23 @@ async function startServer() {
     })
   );
   // development mode uses Vite, production mode uses static files
+  if (process.env.NODE_ENV !== "development" && serveFrontend) {
+    serveStatic(app);
+  }
+
+  return app;
+}
+
+async function startServer() {
+  const app = await createApp();
+  const server = createServer(app);
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
-  } else {
-    serveStatic(app);
   }
 
   const port = parseInt(process.env.PORT || "3000", 10);
 
-  server.on("error", error => {
+  server.on("error", (error) => {
     console.error("[Server] Failed to bind to the managed port:", error);
     process.exit(1);
   });
@@ -43,4 +51,6 @@ async function startServer() {
   });
 }
 
-startServer().catch(console.error);
+if (!process.env.VERCEL) {
+  startServer().catch(console.error);
+}
