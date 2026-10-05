@@ -247,6 +247,30 @@ function dataUrlToBase64(blob: Blob) {
   });
 }
 
+function useStoredState<T>(
+  key: string,
+  initialValue: T
+): [T, Dispatch<SetStateAction<T>>] {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const stored = window.localStorage.getItem(key);
+      return stored === null ? initialValue : (JSON.parse(stored) as T);
+    } catch {
+      return initialValue;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // localStorage can be unavailable in private or restricted browser contexts.
+    }
+  }, [key, value]);
+
+  return [value, setValue];
+}
+
 function Header({
   eyebrow,
   title,
@@ -615,9 +639,12 @@ function MeetingsPage({
   refresh: () => void;
   onOpen: (id: string) => void;
 }) {
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("semua");
-  const [sort, setSort] = useState("terbaru");
+  const [query, setQuery] = useStoredState("notulen-meetings-query", "");
+  const [status, setStatus] = useStoredState(
+    "notulen-meetings-status",
+    "semua"
+  );
+  const [sort, setSort] = useStoredState("notulen-meetings-sort", "terbaru");
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
@@ -1663,10 +1690,13 @@ function ActionPage({
   setActions: Dispatch<SetStateAction<ActionItem[]>>;
   refresh: () => void;
 }) {
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("semua");
-  const [priority, setPriority] = useState("semua");
-  const [sort, setSort] = useState("terdekat");
+  const [query, setQuery] = useStoredState("notulen-actions-query", "");
+  const [filter, setFilter] = useStoredState("notulen-actions-status", "semua");
+  const [priority, setPriority] = useStoredState(
+    "notulen-actions-priority",
+    "semua"
+  );
+  const [sort, setSort] = useStoredState("notulen-actions-sort", "terdekat");
   const filtered = actions
     .filter(
       item =>
