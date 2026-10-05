@@ -2,43 +2,315 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { estimateProcessingSeconds, estimateRemainingSeconds, formatEta } from "@/lib/eta";
-import { CANCELLATION_ERROR, abortable, isCancellationError } from "@/lib/processing";
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  estimateProcessingSeconds,
+  estimateRemainingSeconds,
+  formatEta,
+} from "@/lib/eta";
+import {
+  CANCELLATION_ERROR,
+  abortable,
+  isCancellationError,
+} from "@/lib/processing";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useLocation, useRoute } from "wouter";
-import { Activity, ArrowDownRight, ArrowUpRight, CalendarDays, Check, CheckCircle2, ChevronRight, Clock3, Copy, Download, FileAudio, FileText, Filter, Headphones, ListChecks, Mic, MoreHorizontal, Pause, Play, Plus, Search, Settings2, Sparkles, Square, Trash2, UploadCloud, Users, WandSparkles, Loader2 } from "lucide-react";
+import {
+  Activity,
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  Copy,
+  Download,
+  FileAudio,
+  FileText,
+  Filter,
+  Headphones,
+  ListChecks,
+  Mic,
+  MoreHorizontal,
+  Pause,
+  Play,
+  Plus,
+  Search,
+  Settings2,
+  Sparkles,
+  Square,
+  Trash2,
+  UploadCloud,
+  Users,
+  WandSparkles,
+  Loader2,
+} from "lucide-react";
 
 type MeetingStatus = "Selesai" | "Diproses" | "Terjadwal" | "Diarsipkan";
-type Meeting = { id: string; title: string; date: string; time: string; duration: string; attendees: number; attendeeNames?: string[]; meetingDateRaw?: string | null; status: MeetingStatus; department: string; agenda: string; location: string; organizer: string; transcript?: string | null; analysis?: string | null };
-type ActionItem = { id: string; task: string; meeting: string; owner: string; due: string; priority: "Tinggi" | "Sedang" | "Rendah"; status: "Belum dimulai" | "Berjalan" | "Selesai" };
-type Analysis = { summary: string; key_points: string[]; decisions: string[]; problems: string[]; action_items: Array<{ task: string; pic: string | null; deadline: string | null; priority: string; status: string }>; follow_up: string[]; conclusion: string };
-type TranscriptLine = { time: string; speaker: string; text: string; confidence?: number };
+type Meeting = {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  duration: string;
+  attendees: number;
+  attendeeNames?: string[];
+  meetingDateRaw?: string | null;
+  status: MeetingStatus;
+  department: string;
+  agenda: string;
+  location: string;
+  organizer: string;
+  transcript?: string | null;
+  analysis?: string | null;
+};
+type ActionItem = {
+  id: string;
+  task: string;
+  meeting: string;
+  owner: string;
+  due: string;
+  priority: "Tinggi" | "Sedang" | "Rendah";
+  status: "Belum dimulai" | "Berjalan" | "Selesai";
+};
+type Analysis = {
+  summary: string;
+  key_points: string[];
+  decisions: string[];
+  problems: string[];
+  action_items: Array<{
+    task: string;
+    pic: string | null;
+    deadline: string | null;
+    priority: string;
+    status: string;
+  }>;
+  follow_up: string[];
+  conclusion: string;
+};
+type TranscriptLine = {
+  time: string;
+  speaker: string;
+  text: string;
+  confidence?: number;
+};
 
-const statusStyles: Record<MeetingStatus, string> = { Selesai: "bg-[#e7f5f1] text-[#2a8d72]", Diproses: "bg-[#fff4df] text-[#bd7b16]", Terjadwal: "bg-[#eef0ff] text-[#655bd7]", Diarsipkan: "bg-slate-100 text-slate-500" };
-const actionStatusStyles: Record<ActionItem["status"], string> = { "Belum dimulai": "bg-[#f2f3f7] text-slate-500", Berjalan: "bg-[#fff4df] text-[#bd7b16]", Selesai: "bg-[#e7f5f1] text-[#2a8d72]" };
+const statusStyles: Record<MeetingStatus, string> = {
+  Selesai: "bg-[#e7f5f1] text-[#2a8d72]",
+  Diproses: "bg-[#fff4df] text-[#bd7b16]",
+  Terjadwal: "bg-[#eef0ff] text-[#655bd7]",
+  Diarsipkan: "bg-slate-100 text-slate-500",
+};
+const actionStatusStyles: Record<ActionItem["status"], string> = {
+  "Belum dimulai": "bg-[#f2f3f7] text-slate-500",
+  Berjalan: "bg-[#fff4df] text-[#bd7b16]",
+  Selesai: "bg-[#e7f5f1] text-[#2a8d72]",
+};
 
-function json<T>(value?: string | null) { try { return value ? JSON.parse(value) as T : null; } catch { return null; } }
-function attendees(raw: string | null) { const value = json<string[]>(raw); return Array.isArray(value) ? value : []; }
-function duration(ms: number) { const seconds = Math.max(0, Math.round(ms / 1000)); return `${String(Math.floor(seconds / 3600)).padStart(2, "0")}:${String(Math.floor((seconds % 3600) / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`; }
-function timestamp(seconds: number) { return duration(seconds * 1000); }
-function toLocalMeeting(item: any): Meeting { return { id: String(item.id), title: item.title, date: item.meetingDate ? new Date(item.meetingDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "Belum ditentukan", time: item.meetingDate ? new Date(item.meetingDate).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "—", meetingDateRaw: item.meetingDate ? new Date(item.meetingDate).toISOString().slice(0, 10) : null, duration: item.startedAt && item.endedAt ? duration(new Date(item.endedAt).getTime() - new Date(item.startedAt).getTime()) : "—", attendees: attendees(item.attendees).length, attendeeNames: attendees(item.attendees), status: item.status === "completed" ? "Selesai" : item.status === "processing" ? "Diproses" : item.status === "archived" ? "Diarsipkan" : "Terjadwal", department: item.department || "Umum", agenda: item.agenda || "Agenda belum ditambahkan.", location: item.location || "Belum ditentukan", organizer: item.organizer || "Belum ditentukan", transcript: item.transcript, analysis: item.analysis }; }
-function toLocalAction(item: any, meetingMap: Map<string, string>): ActionItem { return { id: String(item.id), task: item.task, meeting: meetingMap.get(String(item.meetingId)) || `Rapat #${item.meetingId}`, owner: item.pic || "Belum ditentukan", due: item.deadline || "Belum ditentukan", priority: item.priority === "high" ? "Tinggi" : item.priority === "low" ? "Rendah" : "Sedang", status: item.status === "done" ? "Selesai" : item.status === "in_progress" ? "Berjalan" : "Belum dimulai" }; }
-function dataUrlToBase64(blob: Blob) { return new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onloadend = () => resolve(String(reader.result).split(",")[1] || ""); reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob); }); }
+function json<T>(value?: string | null) {
+  try {
+    return value ? (JSON.parse(value) as T) : null;
+  } catch {
+    return null;
+  }
+}
+function attendees(raw: string | null) {
+  const value = json<string[]>(raw);
+  return Array.isArray(value) ? value : [];
+}
+function duration(ms: number) {
+  const seconds = Math.max(0, Math.round(ms / 1000));
+  return `${String(Math.floor(seconds / 3600)).padStart(2, "0")}:${String(Math.floor((seconds % 3600) / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+}
+function timestamp(seconds: number) {
+  return duration(seconds * 1000);
+}
+function toLocalMeeting(item: any): Meeting {
+  return {
+    id: String(item.id),
+    title: item.title,
+    date: item.meetingDate
+      ? new Date(item.meetingDate).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "Belum ditentukan",
+    time: item.meetingDate
+      ? new Date(item.meetingDate).toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "—",
+    meetingDateRaw: item.meetingDate
+      ? new Date(item.meetingDate).toISOString().slice(0, 10)
+      : null,
+    duration:
+      item.startedAt && item.endedAt
+        ? duration(
+            new Date(item.endedAt).getTime() -
+              new Date(item.startedAt).getTime()
+          )
+        : "—",
+    attendees: attendees(item.attendees).length,
+    attendeeNames: attendees(item.attendees),
+    status:
+      item.status === "completed"
+        ? "Selesai"
+        : item.status === "processing"
+          ? "Diproses"
+          : item.status === "archived"
+            ? "Diarsipkan"
+            : "Terjadwal",
+    department: item.department || "Umum",
+    agenda: item.agenda || "Agenda belum ditambahkan.",
+    location: item.location || "Belum ditentukan",
+    organizer: item.organizer || "Belum ditentukan",
+    transcript: item.transcript,
+    analysis: item.analysis,
+  };
+}
+function toLocalAction(item: any, meetingMap: Map<string, string>): ActionItem {
+  return {
+    id: String(item.id),
+    task: item.task,
+    meeting:
+      meetingMap.get(String(item.meetingId)) || `Rapat #${item.meetingId}`,
+    owner: item.pic || "Belum ditentukan",
+    due: item.deadline || "Belum ditentukan",
+    priority:
+      item.priority === "high"
+        ? "Tinggi"
+        : item.priority === "low"
+          ? "Rendah"
+          : "Sedang",
+    status:
+      item.status === "done"
+        ? "Selesai"
+        : item.status === "in_progress"
+          ? "Berjalan"
+          : "Belum dimulai",
+  };
+}
+function dataUrlToBase64(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
 
-function Header({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) { return <div className="mb-7 flex flex-col justify-between gap-5 lg:flex-row lg:items-start"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#655bd7]">{eyebrow}</p><h1 className="mt-2 font-display text-3xl font-semibold tracking-[-0.05em] text-[#172033] dark:text-white">{title}</h1><p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">{description}</p></div>{action}</div>; }
-function Stat({ label, value, note, icon: Icon, accent }: { label: string; value: string; note: string; icon: typeof Activity; accent: string }) { return <Card className="border-[#e9eaf1] bg-white shadow-[0_8px_30px_rgba(39,41,74,0.03)] dark:border-white/10 dark:bg-[#141821]"><CardContent className="p-5"><div className="flex items-start justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{label}</p><p className="mt-3 font-display text-3xl font-semibold tracking-[-0.05em] text-[#172033] dark:text-white">{value}</p><p className="mt-1 text-xs text-slate-400">{note}</p></div><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${accent}`}><Icon className="h-4 w-4" /></span></div></CardContent></Card>; }
+function Header({
+  eyebrow,
+  title,
+  description,
+  action,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-7 flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#655bd7]">
+          {eyebrow}
+        </p>
+        <h1 className="mt-2 font-display text-3xl font-semibold tracking-[-0.05em] text-[#172033] dark:text-white">
+          {title}
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
+          {description}
+        </p>
+      </div>
+      {action}
+    </div>
+  );
+}
+function Stat({
+  label,
+  value,
+  note,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  icon: typeof Activity;
+  accent: string;
+}) {
+  return (
+    <Card className="border-[#e9eaf1] bg-white shadow-[0_8px_30px_rgba(39,41,74,0.03)] dark:border-white/10 dark:bg-[#141821]">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
+              {label}
+            </p>
+            <p className="mt-3 font-display text-3xl font-semibold tracking-[-0.05em] text-[#172033] dark:text-white">
+              {value}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">{note}</p>
+          </div>
+          <span
+            className={`flex h-9 w-9 items-center justify-center rounded-xl ${accent}`}
+          >
+            <Icon className="h-4 w-4" />
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Home() {
   const [location, setLocation] = useLocation();
@@ -47,34 +319,2057 @@ export default function Home() {
   const [actions, setActions] = useState<ActionItem[]>([]);
   const meetingQuery = trpc.meetings.list.useQuery();
   const actionQuery = trpc.actionItems.list.useQuery();
-  const meetingMap = useMemo(() => new Map((meetingQuery.data || []).map(item => [String(item.id), item.title])), [meetingQuery.data]);
-  useEffect(() => { if (meetingQuery.data) setMeetings(meetingQuery.data.map(toLocalMeeting)); }, [meetingQuery.data]);
-  useEffect(() => { if (actionQuery.data) setActions(actionQuery.data.map(item => toLocalAction(item, meetingMap))); }, [actionQuery.data, meetingMap]);
-  const selected = detail && params?.id ? meetings.find(item => item.id === params.id) : undefined;
-  const refresh = () => { void meetingQuery.refetch(); void actionQuery.refetch(); };
-  if (meetingQuery.isLoading || actionQuery.isLoading) return <DashboardLayout><div className="mx-auto max-w-[1200px] space-y-5"><div className="h-9 w-56 animate-pulse rounded-xl bg-[#eeeff5]" /><div className="grid gap-4 md:grid-cols-4">{[1, 2, 3, 4].map(item => <div key={item} className="h-32 animate-pulse rounded-2xl bg-[#eeeff5]" />)}</div></div></DashboardLayout>;
-  if (meetingQuery.isError || actionQuery.isError) return <DashboardLayout><div className="mx-auto max-w-[800px] rounded-2xl border border-[#f3d2d6] bg-white p-8 text-center"><p className="text-sm font-semibold">Data workspace belum dapat dimuat.</p><p className="mt-2 text-xs text-slate-400">Periksa koneksi lalu coba muat ulang.</p><Button className="mt-5 rounded-xl bg-[#655bd7]" onClick={refresh}>Coba lagi</Button></div></DashboardLayout>;
-  const content = selected ? <MeetingDetail meeting={selected} actions={actions} setActions={setActions} onBack={() => setLocation("/rapat")} /> : location === "/rapat" ? <MeetingsPage meetings={meetings} setMeetings={setMeetings} refresh={refresh} onOpen={id => setLocation(`/rapat/${id}`)} /> : location === "/rekaman" ? <Recorder onCreated={id => setLocation(`/rapat/${id}`)} refresh={refresh} /> : location === "/action-item" ? <ActionPage actions={actions} setActions={setActions} refresh={refresh} /> : location === "/pengaturan" ? <SettingsPage /> : <Dashboard meetings={meetings} actions={actions} />;
+  const meetingMap = useMemo(
+    () =>
+      new Map(
+        (meetingQuery.data || []).map(item => [String(item.id), item.title])
+      ),
+    [meetingQuery.data]
+  );
+  useEffect(() => {
+    if (meetingQuery.data) setMeetings(meetingQuery.data.map(toLocalMeeting));
+  }, [meetingQuery.data]);
+  useEffect(() => {
+    if (actionQuery.data)
+      setActions(actionQuery.data.map(item => toLocalAction(item, meetingMap)));
+  }, [actionQuery.data, meetingMap]);
+  const selected =
+    detail && params?.id
+      ? meetings.find(item => item.id === params.id)
+      : undefined;
+  const refresh = () => {
+    void meetingQuery.refetch();
+    void actionQuery.refetch();
+  };
+  if (meetingQuery.isLoading || actionQuery.isLoading)
+    return (
+      <DashboardLayout>
+        <div className="mx-auto max-w-[1200px] space-y-5">
+          <div className="h-9 w-56 animate-pulse rounded-xl bg-[#eeeff5]" />
+          <div className="grid gap-4 md:grid-cols-4">
+            {[1, 2, 3, 4].map(item => (
+              <div
+                key={item}
+                className="h-32 animate-pulse rounded-2xl bg-[#eeeff5]"
+              />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  if (meetingQuery.isError || actionQuery.isError)
+    return (
+      <DashboardLayout>
+        <div className="mx-auto max-w-[800px] rounded-2xl border border-[#f3d2d6] bg-white p-8 text-center">
+          <p className="text-sm font-semibold">
+            Data workspace belum dapat dimuat.
+          </p>
+          <p className="mt-2 text-xs text-slate-400">
+            Periksa koneksi lalu coba muat ulang.
+          </p>
+          <Button className="mt-5 rounded-xl bg-[#655bd7]" onClick={refresh}>
+            Coba lagi
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  const content = selected ? (
+    <MeetingDetail
+      meeting={selected}
+      actions={actions}
+      setActions={setActions}
+      onBack={() => setLocation("/rapat")}
+    />
+  ) : location === "/rapat" ? (
+    <MeetingsPage
+      meetings={meetings}
+      setMeetings={setMeetings}
+      refresh={refresh}
+      onOpen={id => setLocation(`/rapat/${id}`)}
+    />
+  ) : location === "/rekaman" ? (
+    <Recorder onCreated={id => setLocation(`/rapat/${id}`)} refresh={refresh} />
+  ) : location === "/action-item" ? (
+    <ActionPage actions={actions} setActions={setActions} refresh={refresh} />
+  ) : location === "/pengaturan" ? (
+    <SettingsPage />
+  ) : (
+    <Dashboard meetings={meetings} actions={actions} />
+  );
   return <DashboardLayout>{content}</DashboardLayout>;
 }
 
-function Dashboard({ meetings, actions }: { meetings: Meeting[]; actions: ActionItem[] }) { const processing = meetings.filter(item => item.status === "Diproses").length; return <div className="mx-auto max-w-[1440px]"><Header eyebrow="Ringkasan workspace" title="Selamat pagi, Novita" description="Semua konteks rapat, keputusan, dan pekerjaan lanjutan dalam satu ruang kerja yang tenang." action={<Button asChild className="h-10 rounded-xl bg-[#655bd7] px-4 text-sm font-semibold shadow-lg shadow-[#655bd7]/15 hover:bg-[#554bc5]"><a href="/rekaman"><Plus className="mr-2 h-4 w-4" /> Mulai rapat baru</a></Button>} /><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Total rapat" value={String(meetings.length)} note="Tersimpan di workspace" icon={CalendarDays} accent="bg-[#f0effd] text-[#655bd7]" /><Stat label="Action item aktif" value={String(actions.filter(item => item.status !== "Selesai").length)} note="Perlu ditindaklanjuti" icon={ListChecks} accent="bg-[#fff4df] text-[#bd7b16]" /><Stat label="Sedang diproses" value={String(processing)} note="Transkripsi atau analisis AI" icon={Activity} accent="bg-[#e7f5f1] text-[#2a8d72]" /><Stat label="Selesai bulan ini" value={String(actions.filter(item => item.status === "Selesai").length)} note="Action item selesai" icon={CheckCircle2} accent="bg-[#f1efff] text-[#655bd7]" /></div><div className="mt-5 grid gap-5 xl:grid-cols-[1.35fr_0.65fr]"><Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardHeader className="flex flex-row items-center justify-between p-6 pb-3"><div><CardTitle className="text-base">Aktivitas workspace</CardTitle><p className="mt-1 text-xs text-slate-400">Status pemrosesan dari rapat terbaru</p></div><Badge className="border-0 bg-[#e7f5f1] text-[10px] font-semibold text-[#2a8d72]">{processing ? "Ada proses aktif" : "Semua sistem normal"}</Badge></CardHeader><CardContent className="p-6 pt-2">{meetings.length ? <div className="flex h-[210px] items-end gap-3 border-b border-l border-slate-100 pb-4 pl-4 dark:border-white/10">{meetings.slice(0, 12).map((meeting, index) => { const height = meeting.status === "Diproses" ? 82 : meeting.status === "Selesai" ? 64 : 42; return <div key={meeting.id} className="flex flex-1 flex-col items-center gap-2"><div className={`w-full max-w-10 rounded-t-lg transition ${index === meetings.slice(0, 12).length - 1 ? "bg-[#655bd7]" : "bg-[#d8d4f7]"}`} style={{ height }} /><span className="max-w-16 truncate text-[10px] text-slate-400">{meeting.date}</span></div>; })}</div> : <div className="flex h-[210px] items-center justify-center rounded-xl border border-dashed border-[#e1def7] bg-[#fafaff] text-center text-xs leading-5 text-slate-400 dark:border-white/10 dark:bg-white/5">Belum ada aktivitas rapat. Grafik akan muncul setelah rapat pertama diproses.</div>}</CardContent></Card><Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardHeader className="flex flex-row items-center justify-between p-6 pb-3"><div><CardTitle className="text-base">Action item terdekat</CardTitle><p className="mt-1 text-xs text-slate-400">Prioritas yang membutuhkan perhatian</p></div><a href="/action-item" className="text-xs font-semibold text-[#655bd7]">Lihat semua</a></CardHeader><CardContent className="space-y-4 p-6 pt-2">{actions.filter(item => item.status !== "Selesai").length ? actions.filter(item => item.status !== "Selesai").slice(0, 3).map(item => <div key={item.id} className="flex gap-3"><div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#d99b3d]" /><div className="min-w-0"><p className="text-sm font-semibold leading-5 text-slate-700 dark:text-slate-200">{item.task}</p><p className="mt-1 text-xs text-slate-400">{item.owner} · {item.due}</p></div></div>) : <div className="rounded-xl bg-[#fafaff] p-4 text-xs leading-5 text-slate-400 dark:bg-white/5">Belum ada action item aktif. Action item baru akan muncul setelah analisis AI selesai.</div>}</CardContent></Card></div><Card className="mt-5 border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardHeader className="flex flex-row items-center justify-between p-6 pb-3"><div><CardTitle className="text-base">Rapat terbaru</CardTitle><p className="mt-1 text-xs text-slate-400">Buka rapat untuk meninjau transkrip dan notulen AI.</p></div><a href="/rapat" className="text-xs font-semibold text-[#655bd7]">Semua rapat</a></CardHeader><CardContent className="p-0"><div className="divide-y divide-slate-100 dark:divide-white/10">{meetings.length ? meetings.slice(0, 4).map(meeting => <a href={`/rapat/${meeting.id}`} key={meeting.id} className="flex items-center justify-between gap-3 px-6 py-4 transition hover:bg-[#fafaff] dark:hover:bg-white/5"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0effd] text-[#655bd7]"><FileText className="h-4 w-4" /></span><div className="min-w-0"><p className="truncate text-sm font-semibold">{meeting.title}</p><p className="mt-1 text-xs text-slate-400">{meeting.date} · {meeting.department}</p></div></div><div className="flex items-center gap-3"><Badge className={`border-0 text-[10px] ${statusStyles[meeting.status]}`}>{meeting.status}</Badge><ChevronRight className="h-4 w-4 text-slate-300" /></div></a>) : <div className="px-6 py-10 text-center text-xs text-slate-400">Belum ada rapat tersimpan. Mulai dari rekam rapat atau tambah rapat baru.</div>}</div></CardContent></Card></div>; }
+function Dashboard({
+  meetings,
+  actions,
+}: {
+  meetings: Meeting[];
+  actions: ActionItem[];
+}) {
+  const processing = meetings.filter(item => item.status === "Diproses").length;
+  return (
+    <div className="mx-auto max-w-[1440px]">
+      <Header
+        eyebrow="Ringkasan workspace"
+        title="Selamat pagi, Novita"
+        description="Semua konteks rapat, keputusan, dan pekerjaan lanjutan dalam satu ruang kerja yang tenang."
+        action={
+          <Button
+            asChild
+            className="h-10 rounded-xl bg-[#655bd7] px-4 text-sm font-semibold shadow-lg shadow-[#655bd7]/15 hover:bg-[#554bc5]"
+          >
+            <a href="/rekaman">
+              <Plus className="mr-2 h-4 w-4" /> Mulai rapat baru
+            </a>
+          </Button>
+        }
+      />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat
+          label="Total rapat"
+          value={String(meetings.length)}
+          note="Tersimpan di workspace"
+          icon={CalendarDays}
+          accent="bg-[#f0effd] text-[#655bd7]"
+        />
+        <Stat
+          label="Action item aktif"
+          value={String(
+            actions.filter(item => item.status !== "Selesai").length
+          )}
+          note="Perlu ditindaklanjuti"
+          icon={ListChecks}
+          accent="bg-[#fff4df] text-[#bd7b16]"
+        />
+        <Stat
+          label="Sedang diproses"
+          value={String(processing)}
+          note="Transkripsi atau analisis AI"
+          icon={Activity}
+          accent="bg-[#e7f5f1] text-[#2a8d72]"
+        />
+        <Stat
+          label="Selesai bulan ini"
+          value={String(
+            actions.filter(item => item.status === "Selesai").length
+          )}
+          note="Action item selesai"
+          icon={CheckCircle2}
+          accent="bg-[#f1efff] text-[#655bd7]"
+        />
+      </div>
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
+        <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+          <CardHeader className="flex flex-row items-center justify-between p-6 pb-3">
+            <div>
+              <CardTitle className="text-base">Aktivitas workspace</CardTitle>
+              <p className="mt-1 text-xs text-slate-400">
+                Status pemrosesan dari rapat terbaru
+              </p>
+            </div>
+            <Badge className="border-0 bg-[#e7f5f1] text-[10px] font-semibold text-[#2a8d72]">
+              {processing ? "Ada proses aktif" : "Semua sistem normal"}
+            </Badge>
+          </CardHeader>
+          <CardContent className="p-6 pt-2">
+            {meetings.length ? (
+              <div className="flex h-[210px] items-end gap-3 border-b border-l border-slate-100 pb-4 pl-4 dark:border-white/10">
+                {meetings.slice(0, 12).map((meeting, index) => {
+                  const height =
+                    meeting.status === "Diproses"
+                      ? 82
+                      : meeting.status === "Selesai"
+                        ? 64
+                        : 42;
+                  return (
+                    <div
+                      key={meeting.id}
+                      className="flex flex-1 flex-col items-center gap-2"
+                    >
+                      <div
+                        className={`w-full max-w-10 rounded-t-lg transition ${index === meetings.slice(0, 12).length - 1 ? "bg-[#655bd7]" : "bg-[#d8d4f7]"}`}
+                        style={{ height }}
+                      />
+                      <span className="max-w-16 truncate text-[10px] text-slate-400">
+                        {meeting.date}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex h-[210px] items-center justify-center rounded-xl border border-dashed border-[#e1def7] bg-[#fafaff] text-center text-xs leading-5 text-slate-400 dark:border-white/10 dark:bg-white/5">
+                Belum ada aktivitas rapat. Grafik akan muncul setelah rapat
+                pertama diproses.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+          <CardHeader className="flex flex-row items-center justify-between p-6 pb-3">
+            <div>
+              <CardTitle className="text-base">Action item terdekat</CardTitle>
+              <p className="mt-1 text-xs text-slate-400">
+                Prioritas yang membutuhkan perhatian
+              </p>
+            </div>
+            <a
+              href="/action-item"
+              className="text-xs font-semibold text-[#655bd7]"
+            >
+              Lihat semua
+            </a>
+          </CardHeader>
+          <CardContent className="space-y-4 p-6 pt-2">
+            {actions.filter(item => item.status !== "Selesai").length ? (
+              actions
+                .filter(item => item.status !== "Selesai")
+                .slice(0, 3)
+                .map(item => (
+                  <div key={item.id} className="flex gap-3">
+                    <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#d99b3d]" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold leading-5 text-slate-700 dark:text-slate-200">
+                        {item.task}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {item.owner} · {item.due}
+                      </p>
+                    </div>
+                  </div>
+                ))
+            ) : (
+              <div className="rounded-xl bg-[#fafaff] p-4 text-xs leading-5 text-slate-400 dark:bg-white/5">
+                Belum ada action item aktif. Action item baru akan muncul
+                setelah analisis AI selesai.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      <Card className="mt-5 border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+        <CardHeader className="flex flex-row items-center justify-between p-6 pb-3">
+          <div>
+            <CardTitle className="text-base">Rapat terbaru</CardTitle>
+            <p className="mt-1 text-xs text-slate-400">
+              Buka rapat untuk meninjau transkrip dan notulen AI.
+            </p>
+          </div>
+          <a href="/rapat" className="text-xs font-semibold text-[#655bd7]">
+            Semua rapat
+          </a>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="divide-y divide-slate-100 dark:divide-white/10">
+            {meetings.length ? (
+              meetings.slice(0, 4).map(meeting => (
+                <a
+                  href={`/rapat/${meeting.id}`}
+                  key={meeting.id}
+                  className="flex items-center justify-between gap-3 px-6 py-4 transition hover:bg-[#fafaff] dark:hover:bg-white/5"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0effd] text-[#655bd7]">
+                      <FileText className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">
+                        {meeting.title}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {meeting.date} · {meeting.department}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge
+                      className={`border-0 text-[10px] ${statusStyles[meeting.status]}`}
+                    >
+                      {meeting.status}
+                    </Badge>
+                    <ChevronRight className="h-4 w-4 text-slate-300" />
+                  </div>
+                </a>
+              ))
+            ) : (
+              <div className="px-6 py-10 text-center text-xs text-slate-400">
+                Belum ada rapat tersimpan. Mulai dari rekam rapat atau tambah
+                rapat baru.
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
-function MeetingsPage({ meetings, setMeetings, refresh, onOpen }: { meetings: Meeting[]; setMeetings: Dispatch<SetStateAction<Meeting[]>>; refresh: () => void; onOpen: (id: string) => void }) { const [query, setQuery] = useState(""); const [status, setStatus] = useState("semua"); const [open, setOpen] = useState(false); const [title, setTitle] = useState(""); const [date, setDate] = useState(""); const [agenda, setAgenda] = useState(""); const [attendeeText, setAttendeeText] = useState(""); const [location, setLocation] = useState(""); const [organizer, setOrganizer] = useState(""); const [department, setDepartment] = useState(""); const create = trpc.meetings.create.useMutation(); const update = trpc.meetings.update.useMutation(); const remove = trpc.meetings.delete.useMutation(); const utils = trpc.useUtils(); const filtered = meetings.filter(item => `${item.title} ${item.department} ${item.agenda}`.toLowerCase().includes(query.toLowerCase()) && (status === "semua" || item.status === status)); const reset = () => { setTitle(""); setDate(""); setAgenda(""); setAttendeeText(""); setLocation(""); setOrganizer(""); setDepartment(""); };
-  const createMeeting = async () => { if (!title.trim()) return toast.error("Judul rapat wajib diisi."); try { await create.mutateAsync({ title: title.trim(), meetingDate: date ? new Date(date) : undefined, agenda: agenda || undefined, attendees: attendeeText.split(",").map(item => item.trim()).filter(Boolean), location: location || undefined, organizer: organizer || undefined, department: department || undefined }); await utils.meetings.list.invalidate(); refresh(); reset(); setOpen(false); toast.success("Rapat baru berhasil dibuat."); } catch { toast.error("Rapat belum dapat disimpan."); } };
-  const edit = async (meeting: Meeting) => { const next = window.prompt("Ubah judul rapat", meeting.title); if (!next?.trim()) return; try { await update.mutateAsync({ id: Number(meeting.id), title: next.trim() }); refresh(); toast.success("Judul rapat diperbarui."); } catch { toast.error("Perubahan belum dapat disimpan."); } };
-  const archive = async (meeting: Meeting) => { try { await update.mutateAsync({ id: Number(meeting.id), status: "archived" }); refresh(); toast.success("Rapat diarsipkan."); } catch { toast.error("Rapat belum dapat diarsipkan."); } };
-  const duplicate = async (meeting: Meeting) => { try { await create.mutateAsync({ title: `${meeting.title} (salinan)`, agenda: meeting.agenda, location: meeting.location, organizer: meeting.organizer, department: meeting.department, attendees: [] }); refresh(); toast.success("Rapat berhasil diduplikasi."); } catch { toast.error("Rapat belum dapat diduplikasi."); } };
-  const removeMeeting = async (meeting: Meeting) => { if (!window.confirm(`Hapus rapat “${meeting.title}”?`)) return; try { await remove.mutateAsync({ id: Number(meeting.id) }); setMeetings(current => current.filter(item => item.id !== meeting.id)); refresh(); toast.success("Rapat dihapus."); } catch { toast.error("Rapat belum dapat dihapus."); } };
-  return <div className="mx-auto max-w-[1440px]"><Header eyebrow="Manajemen rapat" title="Semua rapat" description="Satu tempat untuk menemukan, meninjau, dan menindaklanjuti seluruh percakapan tim." action={<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button className="h-10 rounded-xl bg-[#655bd7] text-sm font-semibold hover:bg-[#554bc5]"><Plus className="mr-2 h-4 w-4" />Tambah rapat</Button></DialogTrigger><DialogContent className="rounded-2xl sm:max-w-[560px]"><DialogHeader><DialogTitle className="font-display text-2xl">Buat rapat baru</DialogTitle><DialogDescription>Isi konteks awal rapat agar notulen AI lebih akurat.</DialogDescription></DialogHeader><div className="grid gap-4 py-3"><div className="grid gap-2"><Label>Judul rapat</Label><Input value={title} onChange={event => setTitle(event.target.value)} placeholder="Contoh: Weekly product sync" /></div><div className="grid gap-2"><Label>Tanggal</Label><Input type="date" value={date} onChange={event => setDate(event.target.value)} /></div><div className="grid gap-2"><Label>Agenda</Label><Textarea value={agenda} onChange={event => setAgenda(event.target.value)} placeholder="Apa yang ingin dibahas?" /></div><div className="grid gap-2"><Label>Peserta</Label><Input value={attendeeText} onChange={event => setAttendeeText(event.target.value)} placeholder="Pisahkan nama dengan koma" /></div><div className="grid gap-3 sm:grid-cols-2"><div className="grid gap-2"><Label>Lokasi</Label><Input value={location} onChange={event => setLocation(event.target.value)} placeholder="Ruang atau link" /></div><div className="grid gap-2"><Label>Departemen</Label><Input value={department} onChange={event => setDepartment(event.target.value)} placeholder="Produk" /></div></div><div className="grid gap-2"><Label>Penyelenggara</Label><Input value={organizer} onChange={event => setOrganizer(event.target.value)} placeholder="Nama penyelenggara" /></div></div><DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Batal</Button><Button className="bg-[#655bd7] hover:bg-[#554bc5]" onClick={createMeeting} disabled={create.isPending}>Simpan rapat</Button></DialogFooter></DialogContent></Dialog>}/><Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardContent className="p-5"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="relative max-w-md flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Cari judul, departemen, atau agenda..." className="h-10 rounded-xl pl-9 text-sm" /></div><div className="flex items-center gap-2"><Filter className="h-4 w-4 text-slate-400" /><Select value={status} onValueChange={setStatus}><SelectTrigger className="h-10 w-40 rounded-xl text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="semua">Semua status</SelectItem><SelectItem value="Selesai">Selesai</SelectItem><SelectItem value="Diproses">Diproses</SelectItem><SelectItem value="Terjadwal">Terjadwal</SelectItem><SelectItem value="Diarsipkan">Diarsipkan</SelectItem></SelectContent></Select></div></div></CardContent><Separator /><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="pl-6">Rapat</TableHead><TableHead>Tanggal</TableHead><TableHead>Durasi</TableHead><TableHead>Peserta</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{filtered.map(meeting => <TableRow key={meeting.id} className="group cursor-pointer" onClick={() => onOpen(meeting.id)}><TableCell className="pl-6"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0effd] text-[#655bd7]"><FileText className="h-4 w-4" /></span><div><p className="text-sm font-semibold">{meeting.title}</p><p className="mt-1 text-xs text-slate-400">{meeting.department} · {meeting.location}</p></div></div></TableCell><TableCell className="text-xs text-slate-500">{meeting.date}<p className="mt-1 text-[11px] text-slate-400">{meeting.time}</p></TableCell><TableCell className="text-xs text-slate-500">{meeting.duration}</TableCell><TableCell className="text-xs text-slate-500">{meeting.attendees}</TableCell><TableCell><Badge className={`border-0 text-[10px] ${statusStyles[meeting.status]}`}>{meeting.status}</Badge></TableCell><TableCell className="pr-5 text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={event => event.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-44 rounded-xl"><DropdownMenuItem onClick={() => void edit(meeting)}>Edit judul</DropdownMenuItem><DropdownMenuItem onClick={() => void duplicate(meeting)}>Duplikasi</DropdownMenuItem><DropdownMenuItem onClick={() => void archive(meeting)}>Arsipkan</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={() => void removeMeeting(meeting)}>Hapus</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)}</TableBody></Table>{filtered.length === 0 && <div className="px-6 py-16 text-center text-sm text-slate-400">Belum ada rapat yang cocok dengan pencarian.</div>}</div></Card></div>; }
+function MeetingsPage({
+  meetings,
+  setMeetings,
+  refresh,
+  onOpen,
+}: {
+  meetings: Meeting[];
+  setMeetings: Dispatch<SetStateAction<Meeting[]>>;
+  refresh: () => void;
+  onOpen: (id: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("semua");
+  const [sort, setSort] = useState("terbaru");
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState("");
+  const [agenda, setAgenda] = useState("");
+  const [attendeeText, setAttendeeText] = useState("");
+  const [location, setLocation] = useState("");
+  const [organizer, setOrganizer] = useState("");
+  const [department, setDepartment] = useState("");
+  const create = trpc.meetings.create.useMutation();
+  const update = trpc.meetings.update.useMutation();
+  const remove = trpc.meetings.delete.useMutation();
+  const utils = trpc.useUtils();
+  const filtered = meetings
+    .filter(
+      item =>
+        `${item.title} ${item.department} ${item.agenda}`
+          .toLowerCase()
+          .includes(query.toLowerCase()) &&
+        (status === "semua" || item.status === status)
+    )
+    .sort((a, b) => {
+      if (sort === "judul") return a.title.localeCompare(b.title, "id");
+      if (sort === "status") return a.status.localeCompare(b.status, "id");
+      const aDate = a.meetingDateRaw ? new Date(a.meetingDateRaw).getTime() : 0;
+      const bDate = b.meetingDateRaw ? new Date(b.meetingDateRaw).getTime() : 0;
+      return sort === "terlama" ? aDate - bDate : bDate - aDate;
+    });
+  const reset = () => {
+    setTitle("");
+    setDate("");
+    setAgenda("");
+    setAttendeeText("");
+    setLocation("");
+    setOrganizer("");
+    setDepartment("");
+  };
+  const createMeeting = async () => {
+    if (!title.trim()) return toast.error("Judul rapat wajib diisi.");
+    try {
+      await create.mutateAsync({
+        title: title.trim(),
+        meetingDate: date ? new Date(date) : undefined,
+        agenda: agenda || undefined,
+        attendees: attendeeText
+          .split(",")
+          .map(item => item.trim())
+          .filter(Boolean),
+        location: location || undefined,
+        organizer: organizer || undefined,
+        department: department || undefined,
+      });
+      await utils.meetings.list.invalidate();
+      refresh();
+      reset();
+      setOpen(false);
+      toast.success("Rapat baru berhasil dibuat.");
+    } catch {
+      toast.error("Rapat belum dapat disimpan.");
+    }
+  };
+  const edit = async (meeting: Meeting) => {
+    const next = window.prompt("Ubah judul rapat", meeting.title);
+    if (!next?.trim()) return;
+    try {
+      await update.mutateAsync({ id: Number(meeting.id), title: next.trim() });
+      refresh();
+      toast.success("Judul rapat diperbarui.");
+    } catch {
+      toast.error("Perubahan belum dapat disimpan.");
+    }
+  };
+  const archive = async (meeting: Meeting) => {
+    try {
+      await update.mutateAsync({ id: Number(meeting.id), status: "archived" });
+      refresh();
+      toast.success("Rapat diarsipkan.");
+    } catch {
+      toast.error("Rapat belum dapat diarsipkan.");
+    }
+  };
+  const duplicate = async (meeting: Meeting) => {
+    try {
+      await create.mutateAsync({
+        title: `${meeting.title} (salinan)`,
+        agenda: meeting.agenda,
+        location: meeting.location,
+        organizer: meeting.organizer,
+        department: meeting.department,
+        attendees: [],
+      });
+      refresh();
+      toast.success("Rapat berhasil diduplikasi.");
+    } catch {
+      toast.error("Rapat belum dapat diduplikasi.");
+    }
+  };
+  const removeMeeting = async (meeting: Meeting) => {
+    if (!window.confirm(`Hapus rapat “${meeting.title}”?`)) return;
+    try {
+      await remove.mutateAsync({ id: Number(meeting.id) });
+      setMeetings(current => current.filter(item => item.id !== meeting.id));
+      refresh();
+      toast.success("Rapat dihapus.");
+    } catch {
+      toast.error("Rapat belum dapat dihapus.");
+    }
+  };
+  return (
+    <div className="mx-auto max-w-[1440px]">
+      <Header
+        eyebrow="Manajemen rapat"
+        title="Semua rapat"
+        description="Satu tempat untuk menemukan, meninjau, dan menindaklanjuti seluruh percakapan tim."
+        action={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="h-10 rounded-xl bg-[#655bd7] text-sm font-semibold hover:bg-[#554bc5]">
+                <Plus className="mr-2 h-4 w-4" />
+                Tambah rapat
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-2xl sm:max-w-[560px]">
+              <DialogHeader>
+                <DialogTitle className="font-display text-2xl">
+                  Buat rapat baru
+                </DialogTitle>
+                <DialogDescription>
+                  Isi konteks awal rapat agar notulen AI lebih akurat.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-3">
+                <div className="grid gap-2">
+                  <Label>Judul rapat</Label>
+                  <Input
+                    value={title}
+                    onChange={event => setTitle(event.target.value)}
+                    placeholder="Contoh: Weekly product sync"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Tanggal</Label>
+                  <Input
+                    type="date"
+                    value={date}
+                    onChange={event => setDate(event.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Agenda</Label>
+                  <Textarea
+                    value={agenda}
+                    onChange={event => setAgenda(event.target.value)}
+                    placeholder="Apa yang ingin dibahas?"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Peserta</Label>
+                  <Input
+                    value={attendeeText}
+                    onChange={event => setAttendeeText(event.target.value)}
+                    placeholder="Pisahkan nama dengan koma"
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label>Lokasi</Label>
+                    <Input
+                      value={location}
+                      onChange={event => setLocation(event.target.value)}
+                      placeholder="Ruang atau link"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Departemen</Label>
+                    <Input
+                      value={department}
+                      onChange={event => setDepartment(event.target.value)}
+                      placeholder="Produk"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Penyelenggara</Label>
+                  <Input
+                    value={organizer}
+                    onChange={event => setOrganizer(event.target.value)}
+                    placeholder="Nama penyelenggara"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Batal
+                </Button>
+                <Button
+                  className="bg-[#655bd7] hover:bg-[#554bc5]"
+                  onClick={createMeeting}
+                  disabled={create.isPending}
+                >
+                  Simpan rapat
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        }
+      />
+      <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative max-w-md flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                placeholder="Cari judul, departemen, atau agenda..."
+                className="h-10 rounded-xl pl-9 text-sm"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Filter className="h-4 w-4 text-slate-400" />
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="h-10 w-40 rounded-xl text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="semua">Semua status</SelectItem>
+                  <SelectItem value="Selesai">Selesai</SelectItem>
+                  <SelectItem value="Diproses">Diproses</SelectItem>
+                  <SelectItem value="Terjadwal">Terjadwal</SelectItem>
+                  <SelectItem value="Diarsipkan">Diarsipkan</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sort} onValueChange={setSort}>
+                <SelectTrigger className="h-10 w-44 rounded-xl text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="terbaru">Tanggal terbaru</SelectItem>
+                  <SelectItem value="terlama">Tanggal terlama</SelectItem>
+                  <SelectItem value="judul">Judul A–Z</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+        <Separator />
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="pl-6">Rapat</TableHead>
+                <TableHead>Tanggal</TableHead>
+                <TableHead>Durasi</TableHead>
+                <TableHead>Peserta</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map(meeting => (
+                <TableRow
+                  key={meeting.id}
+                  className="group cursor-pointer"
+                  onClick={() => onOpen(meeting.id)}
+                >
+                  <TableCell className="pl-6">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0effd] text-[#655bd7]">
+                        <FileText className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold">{meeting.title}</p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {meeting.department} · {meeting.location}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-500">
+                    {meeting.date}
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      {meeting.time}
+                    </p>
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-500">
+                    {meeting.duration}
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-500">
+                    {meeting.attendees}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      className={`border-0 text-[10px] ${statusStyles[meeting.status]}`}
+                    >
+                      {meeting.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="pr-5 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                          onClick={event => event.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-44 rounded-xl"
+                      >
+                        <DropdownMenuItem onClick={() => void edit(meeting)}>
+                          Edit judul
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => void duplicate(meeting)}
+                        >
+                          Duplikasi
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => void archive(meeting)}>
+                          Arsipkan
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => void removeMeeting(meeting)}
+                        >
+                          Hapus
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {filtered.length === 0 && (
+            <div className="px-6 py-16 text-center text-sm text-slate-400">
+              Belum ada rapat yang cocok dengan pencarian.
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
 
-function MeetingDetail({ meeting, actions, setActions, onBack }: { meeting: Meeting; actions: ActionItem[]; setActions: Dispatch<SetStateAction<ActionItem[]>>; onBack: () => void }) { const [tab, setTab] = useState<"ringkasan" | "transkrip" | "action">("ringkasan"); const [editingMeeting, setEditingMeeting] = useState(false); const [draftMeeting, setDraftMeeting] = useState(() => ({ title: meeting.title, date: meeting.meetingDateRaw || "", attendees: meeting.attendeeNames?.join(", ") || "", agenda: meeting.agenda, location: meeting.location, organizer: meeting.organizer, department: meeting.department })); const analysis = json<Analysis>(meeting.analysis); const parsed = json<{ segments?: Array<{ start?: number; speaker?: string; text?: string; confidence?: number }> }>(meeting.transcript); const [lines, setLines] = useState<TranscriptLine[]>(parsed?.segments?.map((item, index) => ({ time: timestamp(item.start ?? index * 6), speaker: item.speaker || `Pembicara ${index + 1}`, text: item.text || "", confidence: item.confidence ? Math.round(item.confidence * 100) : undefined })).filter(item => item.text) || [{ time: "00:00:00", speaker: "—", text: "Belum ada transkrip tersimpan." }]); const update = trpc.meetings.update.useMutation(); const utils = trpc.useUtils(); const related = actions.filter(item => item.meeting === meeting.title || item.meeting === `Rapat #${meeting.id}`); const summary = analysis?.summary || "Belum ada ringkasan AI tersimpan untuk rapat ini."; const decisions = analysis?.decisions?.length ? analysis.decisions : ["Belum ada keputusan yang tersimpan."]; const points = analysis?.key_points?.length ? analysis.key_points : ["Belum ada poin pembahasan yang tersimpan."]; const problems = analysis?.problems?.length ? analysis.problems : ["Belum ada masalah yang tersimpan."]; const followUp = analysis?.follow_up?.length ? analysis.follow_up : ["Belum ada tindak lanjut yang tersimpan."]; const saveMeeting = async () => { try { await update.mutateAsync({ id: Number(meeting.id), title: draftMeeting.title, meetingDate: draftMeeting.date ? new Date(draftMeeting.date) : null, agenda: draftMeeting.agenda, location: draftMeeting.location, organizer: draftMeeting.organizer, department: draftMeeting.department, attendees: draftMeeting.attendees.split(",").map(item => item.trim()).filter(Boolean) }); setEditingMeeting(false); await utils.meetings.list.invalidate(); toast.success("Detail rapat disimpan."); } catch { toast.error("Detail rapat belum dapat disimpan."); } }; const saveTranscript = async () => { try { await update.mutateAsync({ id: Number(meeting.id), transcript: JSON.stringify({ language: "id", segments: lines.map(line => ({ start: line.time.split(":").reduce((total, part) => total * 60 + Number(part), 0), speaker: line.speaker, text: line.text, confidence: line.confidence ? line.confidence / 100 : undefined })) }) }); await utils.meetings.list.invalidate(); toast.success("Transkrip disimpan."); } catch { toast.error("Transkrip belum dapat disimpan."); } }; const exportMarkdown = () => { const content = `# NOTULEN RAPAT\n\n## Informasi\n- Judul: ${meeting.title}\n- Tanggal: ${meeting.date}\n- Lokasi: ${meeting.location}\n- Penyelenggara: ${meeting.organizer}\n\n## Ringkasan\n${summary}\n\n## Poin pembahasan\n${points.map((item, index) => `${index + 1}. ${item}`).join("\n")}\n\n## Keputusan\n${decisions.map((item, index) => `${index + 1}. ${item}`).join("\n")}\n\n## Permasalahan\n${problems.map((item, index) => `${index + 1}. ${item}`).join("\\n")}\n\n## Action item\n${related.map((item, index) => `${index + 1}. ${item.task} — ${item.owner} — ${item.due}`).join("\n")}\n\n## Tindak lanjut\n${followUp.map((item, index) => `${index + 1}. ${item}`).join("\\n")}\n\n## Kesimpulan\n${analysis?.conclusion || "Belum ada kesimpulan yang tersimpan."}\n`; const blob = new Blob([content], { type: "text/markdown;charset=utf-8" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${meeting.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.md`; anchor.click(); URL.revokeObjectURL(url); toast.success("Notulen diunduh."); };
-  return <div className="mx-auto max-w-[1280px]"><button onClick={onBack} className="mb-5 flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-[#655bd7]"><ArrowDownRight className="h-4 w-4 rotate-45" />Kembali ke semua rapat</button><div className="mb-7 flex flex-col justify-between gap-4 lg:flex-row lg:items-start"><div><div className="flex items-center gap-3"><Badge className={`border-0 text-[10px] ${statusStyles[meeting.status]}`}>{meeting.status}</Badge><span className="text-xs text-slate-400">{meeting.date} · {meeting.time}</span></div><h1 className="mt-3 font-display text-3xl font-semibold tracking-[-0.05em]">{meeting.title}</h1><p className="mt-2 text-sm text-slate-500">{meeting.agenda}</p></div><div className="flex gap-2"><Button variant="outline" className="rounded-xl" onClick={() => setEditingMeeting(value => !value)}><Settings2 className="mr-2 h-4 w-4" />{editingMeeting ? "Tutup edit" : "Edit detail"}</Button><Button className="rounded-xl bg-[#655bd7] hover:bg-[#554bc5]" onClick={exportMarkdown}><Download className="mr-2 h-4 w-4" />Ekspor notulen</Button></div></div>{editingMeeting && <Card className="mb-5 border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardHeader><CardTitle className="text-base">Edit detail rapat</CardTitle><p className="text-xs text-slate-400">Perubahan akan disimpan ke workspace Anda.</p></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><div className="grid gap-2"><Label>Judul</Label><Input value={draftMeeting.title} onChange={event => setDraftMeeting({ ...draftMeeting, title: event.target.value })} /></div><div className="grid gap-2"><Label>Tanggal</Label><Input value={draftMeeting.date} onChange={event => setDraftMeeting({ ...draftMeeting, date: event.target.value })} /></div><div className="grid gap-2 sm:col-span-2"><Label>Peserta</Label><Input value={draftMeeting.attendees} onChange={event => setDraftMeeting({ ...draftMeeting, attendees: event.target.value })} placeholder="Pisahkan nama dengan koma" /></div><div className="grid gap-2 sm:col-span-2"><Label>Agenda</Label><Textarea value={draftMeeting.agenda} onChange={event => setDraftMeeting({ ...draftMeeting, agenda: event.target.value })} /></div><div className="grid gap-2"><Label>Lokasi</Label><Input value={draftMeeting.location} onChange={event => setDraftMeeting({ ...draftMeeting, location: event.target.value })} /></div><div className="grid gap-2"><Label>Departemen</Label><Input value={draftMeeting.department} onChange={event => setDraftMeeting({ ...draftMeeting, department: event.target.value })} /></div><div className="grid gap-2"><Label>Penyelenggara</Label><Input value={draftMeeting.organizer} onChange={event => setDraftMeeting({ ...draftMeeting, organizer: event.target.value })} /></div><div className="sm:col-span-2"><Button onClick={() => void saveMeeting()} className="rounded-xl bg-[#655bd7] hover:bg-[#554bc5]" disabled={update.isPending}>Simpan detail rapat</Button></div></CardContent></Card>}<div className="grid gap-5 lg:grid-cols-[1.4fr_0.6fr]"><div><div className="mb-4 flex rounded-xl bg-[#eeeff5] p-1 dark:bg-white/5">{([["ringkasan", "Ringkasan"], ["transkrip", "Transkrip"], ["action", "Action item"]] as const).map(([value, label]) => <button key={value} onClick={() => setTab(value)} className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold ${tab === value ? "bg-white text-[#655bd7] shadow-sm dark:bg-[#24213e]" : "text-slate-500"}`}>{label}</button>)}</div>{tab === "ringkasan" && <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardHeader><CardTitle className="text-base">Draft notulen AI</CardTitle><p className="text-xs text-slate-400">Dibuat dari transkrip yang telah ditinjau.</p></CardHeader><CardContent className="space-y-6"><div><h3 className="text-sm font-semibold">Ringkasan</h3><p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">{summary}</p></div><div><h3 className="text-sm font-semibold">Keputusan utama</h3><div className="mt-3 space-y-2">{decisions.map((item, index) => <div key={item} className="flex gap-3 text-sm leading-6 text-slate-600 dark:text-slate-300"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#e7f5f1] text-[10px] font-bold text-[#2a8d72]">{index + 1}</span>{item}</div>)}</div></div><div><h3 className="text-sm font-semibold">Poin pembahasan</h3><div className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{points.map(item => <p key={item}>• {item}</p>)}</div></div><div className="grid gap-5 md:grid-cols-2"><div><h3 className="text-sm font-semibold">Permasalahan</h3><div className="mt-2 space-y-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{problems.map(item => <p key={item}>• {item}</p>)}</div></div><div><h3 className="text-sm font-semibold">Tindak lanjut</h3><div className="mt-2 space-y-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{followUp.map(item => <p key={item}>• {item}</p>)}</div></div></div><div className="rounded-xl bg-[#f7f7fc] p-4 dark:bg-white/5"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#655bd7]">Kesimpulan</p><p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{analysis?.conclusion || "Belum ada kesimpulan yang tersimpan."}</p></div></CardContent></Card>}{tab === "transkrip" && <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardHeader className="flex flex-row items-center justify-between"><div><CardTitle className="text-base">Transkrip Bahasa Indonesia</CardTitle><p className="text-xs text-slate-400">Edit isi percakapan lalu simpan untuk dianalisis ulang.</p></div><Button variant="outline" className="rounded-lg text-xs" onClick={saveTranscript} disabled={update.isPending}>Simpan perubahan</Button></CardHeader><CardContent className="space-y-3">{lines.map((line, index) => <div key={`${line.time}-${index}`} className="flex gap-3 rounded-xl border border-transparent p-3 hover:border-[#e9eaf1] dark:hover:border-white/10"><div className="w-16 shrink-0 pt-2 font-mono text-[11px] text-[#655bd7]">{line.time}</div><div className="flex-1"><div className="mb-1 flex items-center gap-2 text-xs font-semibold"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f0effd] text-[#655bd7]">{line.speaker.slice(0, 1)}</span>{line.speaker}<Badge className="border-0 bg-slate-100 text-[9px] text-slate-500">{line.confidence ? `${line.confidence}%` : "—"}</Badge></div><Textarea value={lines[index]?.text || ""} onChange={event => setLines(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item))} className="min-h-16 resize-none text-sm" /></div></div>)}</CardContent></Card>}{tab === "action" && <ActionList actions={related} setActions={setActions} />}</div><div className="space-y-5"><Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardHeader><CardTitle className="text-sm">Detail rapat</CardTitle></CardHeader><CardContent className="space-y-4">{([[CalendarDays, "Tanggal", meeting.date], [Clock3, "Durasi", meeting.duration], [Users, "Peserta", `${meeting.attendees} orang`], [FileText, "Departemen", meeting.department]] as Array<[typeof CalendarDays, string, string]>).map(([Icon, label, value]) => <div key={String(label)} className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f5f6fa] text-slate-500"><Icon className="h-4 w-4" /></span><div><p className="text-[10px] uppercase tracking-[0.12em] text-slate-400">{label}</p><p className="mt-1 text-xs font-semibold">{value}</p></div></div>)}</CardContent></Card><Card className="border-[#e9eaf1] bg-[#f0effd] dark:border-white/10 dark:bg-[#24213e]"><CardContent className="p-5"><div className="flex items-center gap-2 text-[#655bd7]"><Sparkles className="h-4 w-4" /><span className="text-xs font-bold uppercase tracking-[0.14em]">AI intelligence</span></div><p className="mt-4 font-display text-3xl font-semibold">{analysis ? "Aktif" : "Siap"}</p><p className="mt-1 text-xs leading-5 text-slate-500">Hasil analisis tersimpan di server dan dapat diekspor kapan saja.</p></CardContent></Card></div></div></div>; }
+function MeetingDetail({
+  meeting,
+  actions,
+  setActions,
+  onBack,
+}: {
+  meeting: Meeting;
+  actions: ActionItem[];
+  setActions: Dispatch<SetStateAction<ActionItem[]>>;
+  onBack: () => void;
+}) {
+  const [tab, setTab] = useState<"ringkasan" | "transkrip" | "action">(
+    "ringkasan"
+  );
+  const [editingMeeting, setEditingMeeting] = useState(false);
+  const [draftMeeting, setDraftMeeting] = useState(() => ({
+    title: meeting.title,
+    date: meeting.meetingDateRaw || "",
+    attendees: meeting.attendeeNames?.join(", ") || "",
+    agenda: meeting.agenda,
+    location: meeting.location,
+    organizer: meeting.organizer,
+    department: meeting.department,
+  }));
+  const analysis = json<Analysis>(meeting.analysis);
+  const parsed = json<{
+    segments?: Array<{
+      start?: number;
+      speaker?: string;
+      text?: string;
+      confidence?: number;
+    }>;
+  }>(meeting.transcript);
+  const [lines, setLines] = useState<TranscriptLine[]>(
+    parsed?.segments
+      ?.map((item, index) => ({
+        time: timestamp(item.start ?? index * 6),
+        speaker: item.speaker || `Pembicara ${index + 1}`,
+        text: item.text || "",
+        confidence: item.confidence
+          ? Math.round(item.confidence * 100)
+          : undefined,
+      }))
+      .filter(item => item.text) || [
+      {
+        time: "00:00:00",
+        speaker: "—",
+        text: "Belum ada transkrip tersimpan.",
+      },
+    ]
+  );
+  const update = trpc.meetings.update.useMutation();
+  const utils = trpc.useUtils();
+  const related = actions.filter(
+    item =>
+      item.meeting === meeting.title || item.meeting === `Rapat #${meeting.id}`
+  );
+  const summary =
+    analysis?.summary || "Belum ada ringkasan AI tersimpan untuk rapat ini.";
+  const decisions = analysis?.decisions?.length
+    ? analysis.decisions
+    : ["Belum ada keputusan yang tersimpan."];
+  const points = analysis?.key_points?.length
+    ? analysis.key_points
+    : ["Belum ada poin pembahasan yang tersimpan."];
+  const problems = analysis?.problems?.length
+    ? analysis.problems
+    : ["Belum ada masalah yang tersimpan."];
+  const followUp = analysis?.follow_up?.length
+    ? analysis.follow_up
+    : ["Belum ada tindak lanjut yang tersimpan."];
+  const saveMeeting = async () => {
+    try {
+      await update.mutateAsync({
+        id: Number(meeting.id),
+        title: draftMeeting.title,
+        meetingDate: draftMeeting.date ? new Date(draftMeeting.date) : null,
+        agenda: draftMeeting.agenda,
+        location: draftMeeting.location,
+        organizer: draftMeeting.organizer,
+        department: draftMeeting.department,
+        attendees: draftMeeting.attendees
+          .split(",")
+          .map(item => item.trim())
+          .filter(Boolean),
+      });
+      setEditingMeeting(false);
+      await utils.meetings.list.invalidate();
+      toast.success("Detail rapat disimpan.");
+    } catch {
+      toast.error("Detail rapat belum dapat disimpan.");
+    }
+  };
+  const saveTranscript = async () => {
+    try {
+      await update.mutateAsync({
+        id: Number(meeting.id),
+        transcript: JSON.stringify({
+          language: "id",
+          segments: lines.map(line => ({
+            start: line.time
+              .split(":")
+              .reduce((total, part) => total * 60 + Number(part), 0),
+            speaker: line.speaker,
+            text: line.text,
+            confidence: line.confidence ? line.confidence / 100 : undefined,
+          })),
+        }),
+      });
+      await utils.meetings.list.invalidate();
+      toast.success("Transkrip disimpan.");
+    } catch {
+      toast.error("Transkrip belum dapat disimpan.");
+    }
+  };
+  const exportMarkdown = () => {
+    const content = `# NOTULEN RAPAT\n\n## Informasi\n- Judul: ${meeting.title}\n- Tanggal: ${meeting.date}\n- Lokasi: ${meeting.location}\n- Penyelenggara: ${meeting.organizer}\n\n## Ringkasan\n${summary}\n\n## Poin pembahasan\n${points.map((item, index) => `${index + 1}. ${item}`).join("\n")}\n\n## Keputusan\n${decisions.map((item, index) => `${index + 1}. ${item}`).join("\n")}\n\n## Permasalahan\n${problems.map((item, index) => `${index + 1}. ${item}`).join("\\n")}\n\n## Action item\n${related.map((item, index) => `${index + 1}. ${item.task} — ${item.owner} — ${item.due}`).join("\n")}\n\n## Tindak lanjut\n${followUp.map((item, index) => `${index + 1}. ${item}`).join("\\n")}\n\n## Kesimpulan\n${analysis?.conclusion || "Belum ada kesimpulan yang tersimpan."}\n`;
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${meeting.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.md`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success("Notulen diunduh.");
+  };
+  return (
+    <div className="mx-auto max-w-[1280px]">
+      <button
+        onClick={onBack}
+        className="mb-5 flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-[#655bd7]"
+      >
+        <ArrowDownRight className="h-4 w-4 rotate-45" />
+        Kembali ke semua rapat
+      </button>
+      <div className="mb-7 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+        <div>
+          <div className="flex items-center gap-3">
+            <Badge
+              className={`border-0 text-[10px] ${statusStyles[meeting.status]}`}
+            >
+              {meeting.status}
+            </Badge>
+            <span className="text-xs text-slate-400">
+              {meeting.date} · {meeting.time}
+            </span>
+          </div>
+          <h1 className="mt-3 font-display text-3xl font-semibold tracking-[-0.05em]">
+            {meeting.title}
+          </h1>
+          <p className="mt-2 text-sm text-slate-500">{meeting.agenda}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="rounded-xl"
+            onClick={() => setEditingMeeting(value => !value)}
+          >
+            <Settings2 className="mr-2 h-4 w-4" />
+            {editingMeeting ? "Tutup edit" : "Edit detail"}
+          </Button>
+          <Button
+            className="rounded-xl bg-[#655bd7] hover:bg-[#554bc5]"
+            onClick={exportMarkdown}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Ekspor notulen
+          </Button>
+        </div>
+      </div>
+      {editingMeeting && (
+        <Card className="mb-5 border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+          <CardHeader>
+            <CardTitle className="text-base">Edit detail rapat</CardTitle>
+            <p className="text-xs text-slate-400">
+              Perubahan akan disimpan ke workspace Anda.
+            </p>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>Judul</Label>
+              <Input
+                value={draftMeeting.title}
+                onChange={event =>
+                  setDraftMeeting({
+                    ...draftMeeting,
+                    title: event.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Tanggal</Label>
+              <Input
+                value={draftMeeting.date}
+                onChange={event =>
+                  setDraftMeeting({ ...draftMeeting, date: event.target.value })
+                }
+              />
+            </div>
+            <div className="grid gap-2 sm:col-span-2">
+              <Label>Peserta</Label>
+              <Input
+                value={draftMeeting.attendees}
+                onChange={event =>
+                  setDraftMeeting({
+                    ...draftMeeting,
+                    attendees: event.target.value,
+                  })
+                }
+                placeholder="Pisahkan nama dengan koma"
+              />
+            </div>
+            <div className="grid gap-2 sm:col-span-2">
+              <Label>Agenda</Label>
+              <Textarea
+                value={draftMeeting.agenda}
+                onChange={event =>
+                  setDraftMeeting({
+                    ...draftMeeting,
+                    agenda: event.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Lokasi</Label>
+              <Input
+                value={draftMeeting.location}
+                onChange={event =>
+                  setDraftMeeting({
+                    ...draftMeeting,
+                    location: event.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Departemen</Label>
+              <Input
+                value={draftMeeting.department}
+                onChange={event =>
+                  setDraftMeeting({
+                    ...draftMeeting,
+                    department: event.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Penyelenggara</Label>
+              <Input
+                value={draftMeeting.organizer}
+                onChange={event =>
+                  setDraftMeeting({
+                    ...draftMeeting,
+                    organizer: event.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Button
+                onClick={() => void saveMeeting()}
+                className="rounded-xl bg-[#655bd7] hover:bg-[#554bc5]"
+                disabled={update.isPending}
+              >
+                Simpan detail rapat
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      <div className="grid gap-5 lg:grid-cols-[1.4fr_0.6fr]">
+        <div>
+          <div className="mb-4 flex rounded-xl bg-[#eeeff5] p-1 dark:bg-white/5">
+            {(
+              [
+                ["ringkasan", "Ringkasan"],
+                ["transkrip", "Transkrip"],
+                ["action", "Action item"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setTab(value)}
+                className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold ${tab === value ? "bg-white text-[#655bd7] shadow-sm dark:bg-[#24213e]" : "text-slate-500"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {tab === "ringkasan" && (
+            <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+              <CardHeader>
+                <CardTitle className="text-base">Draft notulen AI</CardTitle>
+                <p className="text-xs text-slate-400">
+                  Dibuat dari transkrip yang telah ditinjau.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-semibold">Ringkasan</h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                    {summary}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Keputusan utama</h3>
+                  <div className="mt-3 space-y-2">
+                    {decisions.map((item, index) => (
+                      <div
+                        key={item}
+                        className="flex gap-3 text-sm leading-6 text-slate-600 dark:text-slate-300"
+                      >
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#e7f5f1] text-[10px] font-bold text-[#2a8d72]">
+                          {index + 1}
+                        </span>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Poin pembahasan</h3>
+                  <div className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    {points.map(item => (
+                      <p key={item}>• {item}</p>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div>
+                    <h3 className="text-sm font-semibold">Permasalahan</h3>
+                    <div className="mt-2 space-y-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                      {problems.map(item => (
+                        <p key={item}>• {item}</p>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold">Tindak lanjut</h3>
+                    <div className="mt-2 space-y-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                      {followUp.map(item => (
+                        <p key={item}>• {item}</p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-xl bg-[#f7f7fc] p-4 dark:bg-white/5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#655bd7]">
+                    Kesimpulan
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    {analysis?.conclusion ||
+                      "Belum ada kesimpulan yang tersimpan."}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {tab === "transkrip" && (
+            <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">
+                    Transkrip Bahasa Indonesia
+                  </CardTitle>
+                  <p className="text-xs text-slate-400">
+                    Edit isi percakapan lalu simpan untuk dianalisis ulang.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="rounded-lg text-xs"
+                  onClick={saveTranscript}
+                  disabled={update.isPending}
+                >
+                  Simpan perubahan
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {lines.map((line, index) => (
+                  <div
+                    key={`${line.time}-${index}`}
+                    className="flex gap-3 rounded-xl border border-transparent p-3 hover:border-[#e9eaf1] dark:hover:border-white/10"
+                  >
+                    <div className="w-16 shrink-0 pt-2 font-mono text-[11px] text-[#655bd7]">
+                      {line.time}
+                    </div>
+                    <div className="flex-1">
+                      <div className="mb-1 flex items-center gap-2 text-xs font-semibold">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f0effd] text-[#655bd7]">
+                          {line.speaker.slice(0, 1)}
+                        </span>
+                        {line.speaker}
+                        <Badge className="border-0 bg-slate-100 text-[9px] text-slate-500">
+                          {line.confidence ? `${line.confidence}%` : "—"}
+                        </Badge>
+                      </div>
+                      <Textarea
+                        value={lines[index]?.text || ""}
+                        onChange={event =>
+                          setLines(current =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, text: event.target.value }
+                                : item
+                            )
+                          )
+                        }
+                        className="min-h-16 resize-none text-sm"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+          {tab === "action" && (
+            <ActionList actions={related} setActions={setActions} />
+          )}
+        </div>
+        <div className="space-y-5">
+          <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+            <CardHeader>
+              <CardTitle className="text-sm">Detail rapat</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(
+                [
+                  [CalendarDays, "Tanggal", meeting.date],
+                  [Clock3, "Durasi", meeting.duration],
+                  [Users, "Peserta", `${meeting.attendees} orang`],
+                  [FileText, "Departemen", meeting.department],
+                ] as Array<[typeof CalendarDays, string, string]>
+              ).map(([Icon, label, value]) => (
+                <div key={String(label)} className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f5f6fa] text-slate-500">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400">
+                      {label}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold">{value}</p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+          <Card className="border-[#e9eaf1] bg-[#f0effd] dark:border-white/10 dark:bg-[#24213e]">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2 text-[#655bd7]">
+                <Sparkles className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-[0.14em]">
+                  AI intelligence
+                </span>
+              </div>
+              <p className="mt-4 font-display text-3xl font-semibold">
+                {analysis ? "Aktif" : "Siap"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Hasil analisis tersimpan di server dan dapat diekspor kapan
+                saja.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-function ActionList({ actions, setActions }: { actions: ActionItem[]; setActions: Dispatch<SetStateAction<ActionItem[]>> }) { const update = trpc.actionItems.update.useMutation(); const utils = trpc.useUtils(); const [editing, setEditing] = useState<ActionItem | null>(null); const toggle = async (item: ActionItem) => { const next = item.status === "Selesai" ? "in_progress" : "done"; setActions(current => current.map(value => value.id === item.id ? { ...value, status: next === "done" ? "Selesai" : "Berjalan" } : value)); if (Number.isNaN(Number(item.id))) return; try { await update.mutateAsync({ id: Number(item.id), status: next }); await utils.actionItems.list.invalidate(); } catch { toast.error("Status belum dapat disimpan."); } }; const save = async () => { if (!editing) return; const priority = editing.priority === "Tinggi" ? "high" : editing.priority === "Rendah" ? "low" : "medium"; const status = editing.status === "Selesai" ? "done" : editing.status === "Berjalan" ? "in_progress" : "todo"; setActions(current => current.map(item => item.id === editing.id ? editing : item)); if (!Number.isNaN(Number(editing.id))) { try { await update.mutateAsync({ id: Number(editing.id), task: editing.task, pic: editing.owner, deadline: editing.due, priority, status }); await utils.actionItems.list.invalidate(); } catch { toast.error("Action item belum dapat disimpan."); return; } } setEditing(null); toast.success("Action item diperbarui."); }; return <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardContent className="p-0"><div className="divide-y divide-slate-100 dark:divide-white/10">{actions.length ? actions.map(item => <div key={item.id} className="group flex items-center gap-3 px-5 py-4"><button onClick={() => void toggle(item)} className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${item.status === "Selesai" ? "border-[#2a8d72] bg-[#2a8d72] text-white" : "border-slate-300 text-transparent hover:border-[#655bd7]"}`}>{item.status === "Selesai" && <Check className="h-3.5 w-3.5" />}</button><div className="min-w-0 flex-1"><p className={`text-sm font-semibold ${item.status === "Selesai" ? "text-slate-400 line-through" : "text-slate-700 dark:text-slate-200"}`}>{item.task}</p><p className="mt-1 text-xs text-slate-400">{item.meeting} · {item.owner} · {item.due}</p></div><Badge className={`border-0 text-[10px] ${actionStatusStyles[item.status]}`}>{item.status}</Badge><Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setEditing(item)}><Settings2 className="h-4 w-4" /></Button></div>) : <div className="px-5 py-12 text-center text-sm text-slate-400">Belum ada action item. Action item akan dibuat dari keputusan dan tindak lanjut rapat.</div>}</div></CardContent>{editing && <Dialog open onOpenChange={value => !value && setEditing(null)}><DialogContent className="rounded-2xl"><DialogHeader><DialogTitle>Edit action item</DialogTitle><DialogDescription>Perubahan akan disimpan ke workspace.</DialogDescription></DialogHeader><div className="grid gap-4"><div className="grid gap-2"><Label>Tugas</Label><Textarea value={editing.task} onChange={event => setEditing({ ...editing, task: event.target.value })} /></div><div className="grid gap-2"><Label>PIC</Label><Input value={editing.owner} onChange={event => setEditing({ ...editing, owner: event.target.value })} /></div><div className="grid gap-2"><Label>Tenggat</Label><Input value={editing.due} onChange={event => setEditing({ ...editing, due: event.target.value })} /></div><div className="grid gap-2"><Label>Prioritas</Label><Select value={editing.priority} onValueChange={value => setEditing({ ...editing, priority: value as ActionItem["priority"] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Tinggi">Tinggi</SelectItem><SelectItem value="Sedang">Sedang</SelectItem><SelectItem value="Rendah">Rendah</SelectItem></SelectContent></Select></div><div className="grid gap-2"><Label>Status</Label><Select value={editing.status} onValueChange={value => setEditing({ ...editing, status: value as ActionItem["status"] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Belum dimulai">Belum dimulai</SelectItem><SelectItem value="Berjalan">Berjalan</SelectItem><SelectItem value="Selesai">Selesai</SelectItem></SelectContent></Select></div></div><DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Batal</Button><Button className="bg-[#655bd7] hover:bg-[#554bc5]" onClick={() => void save()}>Simpan</Button></DialogFooter></DialogContent></Dialog>}</Card>; }
+function ActionList({
+  actions,
+  setActions,
+}: {
+  actions: ActionItem[];
+  setActions: Dispatch<SetStateAction<ActionItem[]>>;
+}) {
+  const update = trpc.actionItems.update.useMutation();
+  const utils = trpc.useUtils();
+  const [editing, setEditing] = useState<ActionItem | null>(null);
+  const toggle = async (item: ActionItem) => {
+    const next = item.status === "Selesai" ? "in_progress" : "done";
+    setActions(current =>
+      current.map(value =>
+        value.id === item.id
+          ? { ...value, status: next === "done" ? "Selesai" : "Berjalan" }
+          : value
+      )
+    );
+    if (Number.isNaN(Number(item.id))) return;
+    try {
+      await update.mutateAsync({ id: Number(item.id), status: next });
+      await utils.actionItems.list.invalidate();
+    } catch {
+      toast.error("Status belum dapat disimpan.");
+    }
+  };
+  const save = async () => {
+    if (!editing) return;
+    const priority =
+      editing.priority === "Tinggi"
+        ? "high"
+        : editing.priority === "Rendah"
+          ? "low"
+          : "medium";
+    const status =
+      editing.status === "Selesai"
+        ? "done"
+        : editing.status === "Berjalan"
+          ? "in_progress"
+          : "todo";
+    setActions(current =>
+      current.map(item => (item.id === editing.id ? editing : item))
+    );
+    if (!Number.isNaN(Number(editing.id))) {
+      try {
+        await update.mutateAsync({
+          id: Number(editing.id),
+          task: editing.task,
+          pic: editing.owner,
+          deadline: editing.due,
+          priority,
+          status,
+        });
+        await utils.actionItems.list.invalidate();
+      } catch {
+        toast.error("Action item belum dapat disimpan.");
+        return;
+      }
+    }
+    setEditing(null);
+    toast.success("Action item diperbarui.");
+  };
+  return (
+    <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+      <CardContent className="p-0">
+        <div className="divide-y divide-slate-100 dark:divide-white/10">
+          {actions.length ? (
+            actions.map(item => (
+              <div
+                key={item.id}
+                className="group flex items-center gap-3 px-5 py-4"
+              >
+                <button
+                  onClick={() => void toggle(item)}
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${item.status === "Selesai" ? "border-[#2a8d72] bg-[#2a8d72] text-white" : "border-slate-300 text-transparent hover:border-[#655bd7]"}`}
+                >
+                  {item.status === "Selesai" && (
+                    <Check className="h-3.5 w-3.5" />
+                  )}
+                </button>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`text-sm font-semibold ${item.status === "Selesai" ? "text-slate-400 line-through" : "text-slate-700 dark:text-slate-200"}`}
+                  >
+                    {item.task}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {item.meeting} · {item.owner} · {item.due}
+                  </p>
+                </div>
+                <Badge
+                  className={`border-0 text-[10px] ${actionStatusStyles[item.status]}`}
+                >
+                  {item.status}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg"
+                  onClick={() => setEditing(item)}
+                >
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))
+          ) : (
+            <div className="px-5 py-12 text-center text-sm text-slate-400">
+              Belum ada action item. Action item akan dibuat dari keputusan dan
+              tindak lanjut rapat.
+            </div>
+          )}
+        </div>
+      </CardContent>
+      {editing && (
+        <Dialog open onOpenChange={value => !value && setEditing(null)}>
+          <DialogContent className="rounded-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit action item</DialogTitle>
+              <DialogDescription>
+                Perubahan akan disimpan ke workspace.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label>Tugas</Label>
+                <Textarea
+                  value={editing.task}
+                  onChange={event =>
+                    setEditing({ ...editing, task: event.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>PIC</Label>
+                <Input
+                  value={editing.owner}
+                  onChange={event =>
+                    setEditing({ ...editing, owner: event.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Tenggat</Label>
+                <Input
+                  value={editing.due}
+                  onChange={event =>
+                    setEditing({ ...editing, due: event.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Prioritas</Label>
+                <Select
+                  value={editing.priority}
+                  onValueChange={value =>
+                    setEditing({
+                      ...editing,
+                      priority: value as ActionItem["priority"],
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Tinggi">Tinggi</SelectItem>
+                    <SelectItem value="Sedang">Sedang</SelectItem>
+                    <SelectItem value="Rendah">Rendah</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Status</Label>
+                <Select
+                  value={editing.status}
+                  onValueChange={value =>
+                    setEditing({
+                      ...editing,
+                      status: value as ActionItem["status"],
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Belum dimulai">Belum dimulai</SelectItem>
+                    <SelectItem value="Berjalan">Berjalan</SelectItem>
+                    <SelectItem value="Selesai">Selesai</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditing(null)}>
+                Batal
+              </Button>
+              <Button
+                className="bg-[#655bd7] hover:bg-[#554bc5]"
+                onClick={() => void save()}
+              >
+                Simpan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </Card>
+  );
+}
 
-function ActionPage({ actions, setActions, refresh }: { actions: ActionItem[]; setActions: Dispatch<SetStateAction<ActionItem[]>>; refresh: () => void }) { const [filter, setFilter] = useState("semua"); const filtered = actions.filter(item => filter === "semua" || item.status === filter); return <div className="mx-auto max-w-[1100px]"><Header eyebrow="Tindak lanjut" title="Action item" description="Pastikan setiap keputusan rapat bergerak menjadi pekerjaan yang selesai." action={<Button className="rounded-xl bg-[#655bd7] hover:bg-[#554bc5]" onClick={() => toast.info("Tambahkan action item dari detail rapat.")}><Plus className="mr-2 h-4 w-4" />Tambah tugas</Button>} /><div className="mb-5 grid gap-4 sm:grid-cols-3"><Stat label="Total aktif" value={String(actions.filter(item => item.status !== "Selesai").length)} note="Perlu ditindaklanjuti" icon={ListChecks} accent="bg-[#f0effd] text-[#655bd7]" /><Stat label="Sedang berjalan" value={String(actions.filter(item => item.status === "Berjalan").length)} note="Dalam progres" icon={Clock3} accent="bg-[#fff4df] text-[#bd7b16]" /><Stat label="Selesai" value={String(actions.filter(item => item.status === "Selesai").length)} note="Tersimpan" icon={CheckCircle2} accent="bg-[#e7f5f1] text-[#2a8d72]" /></div><div className="mb-4 flex justify-between"><div><h2 className="text-base font-semibold">Semua tugas</h2><p className="mt-1 text-xs text-slate-400">Toggle status atau buka pengaturan untuk quick edit.</p></div><Select value={filter} onValueChange={setFilter}><SelectTrigger className="h-9 w-40 rounded-xl text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="semua">Semua status</SelectItem><SelectItem value="Belum dimulai">Belum dimulai</SelectItem><SelectItem value="Berjalan">Berjalan</SelectItem><SelectItem value="Selesai">Selesai</SelectItem></SelectContent></Select></div><ActionList actions={filtered} setActions={setActions} /></div>; }
+function ActionPage({
+  actions,
+  setActions,
+  refresh,
+}: {
+  actions: ActionItem[];
+  setActions: Dispatch<SetStateAction<ActionItem[]>>;
+  refresh: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("semua");
+  const [priority, setPriority] = useState("semua");
+  const [sort, setSort] = useState("terdekat");
+  const filtered = actions
+    .filter(
+      item =>
+        `${item.task} ${item.meeting} ${item.owner}`
+          .toLowerCase()
+          .includes(query.toLowerCase()) &&
+        (filter === "semua" || item.status === filter) &&
+        (priority === "semua" || item.priority === priority)
+    )
+    .sort((a, b) => {
+      if (sort === "prioritas")
+        return (
+          { Tinggi: 0, Sedang: 1, Rendah: 2 }[a.priority] -
+          { Tinggi: 0, Sedang: 1, Rendah: 2 }[b.priority]
+        );
+      if (sort === "judul") return a.task.localeCompare(b.task, "id");
+      if (sort === "status") return a.status.localeCompare(b.status, "id");
+      const parse = (value: string) =>
+        value === "Belum ditentukan"
+          ? Number.MAX_SAFE_INTEGER
+          : Date.parse(value) || Number.MAX_SAFE_INTEGER;
+      return parse(a.due) - parse(b.due);
+    });
+  return (
+    <div className="mx-auto max-w-[1100px]">
+      <Header
+        eyebrow="Tindak lanjut"
+        title="Action item"
+        description="Pastikan setiap keputusan rapat bergerak menjadi pekerjaan yang selesai."
+        action={
+          <Button
+            className="rounded-xl bg-[#655bd7] hover:bg-[#554bc5]"
+            onClick={() =>
+              toast.info("Tambahkan action item dari detail rapat.")
+            }
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah tugas
+          </Button>
+        }
+      />
+      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+        <Stat
+          label="Total aktif"
+          value={String(
+            actions.filter(item => item.status !== "Selesai").length
+          )}
+          note="Perlu ditindaklanjuti"
+          icon={ListChecks}
+          accent="bg-[#f0effd] text-[#655bd7]"
+        />
+        <Stat
+          label="Sedang berjalan"
+          value={String(
+            actions.filter(item => item.status === "Berjalan").length
+          )}
+          note="Dalam progres"
+          icon={Clock3}
+          accent="bg-[#fff4df] text-[#bd7b16]"
+        />
+        <Stat
+          label="Selesai"
+          value={String(
+            actions.filter(item => item.status === "Selesai").length
+          )}
+          note="Tersimpan"
+          icon={CheckCircle2}
+          accent="bg-[#e7f5f1] text-[#2a8d72]"
+        />
+      </div>
+      <div className="mb-4 flex flex-col gap-3">
+        <div>
+          <h2 className="text-base font-semibold">Semua tugas</h2>
+          <p className="mt-1 text-xs text-slate-400">
+            Atur pencarian, filter, dan urutan sesuai fokus Anda.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              placeholder="Cari tugas, rapat, atau PIC..."
+              className="h-9 rounded-xl pl-9 text-xs"
+            />
+          </div>
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="h-9 w-40 rounded-xl text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="semua">Semua status</SelectItem>
+              <SelectItem value="Belum dimulai">Belum dimulai</SelectItem>
+              <SelectItem value="Berjalan">Berjalan</SelectItem>
+              <SelectItem value="Selesai">Selesai</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={priority} onValueChange={setPriority}>
+            <SelectTrigger className="h-9 w-36 rounded-xl text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="semua">Semua prioritas</SelectItem>
+              <SelectItem value="Tinggi">Tinggi</SelectItem>
+              <SelectItem value="Sedang">Sedang</SelectItem>
+              <SelectItem value="Rendah">Rendah</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sort} onValueChange={setSort}>
+            <SelectTrigger className="h-9 w-40 rounded-xl text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="terdekat">Tenggat terdekat</SelectItem>
+              <SelectItem value="prioritas">Prioritas tinggi</SelectItem>
+              <SelectItem value="judul">Tugas A–Z</SelectItem>
+              <SelectItem value="status">Status</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <ActionList actions={filtered} setActions={setActions} />
+    </div>
+  );
+}
 
-function Recorder({ onCreated, refresh }: { onCreated: (id: string) => void; refresh: () => void }) { const [recording, setRecording] = useState(false); const [paused, setPaused] = useState(false); const [elapsed, setElapsed] = useState(0); const [url, setUrl] = useState<string | null>(null); const [file, setFile] = useState<File | null>(null); const [size, setSize] = useState(0); const [audioDuration, setAudioDuration] = useState(0); const [level, setLevel] = useState(0); const [progress, setProgress] = useState(0); const [processingStage, setProcessingStage] = useState<"idle" | "uploading" | "transcribing" | "analyzing" | "done" | "cancelled">("idle"); const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(null); const [processingClock, setProcessingClock] = useState(() => Date.now()); const cancelRequested = useRef(false); const cancellationToken = useRef<string | null>(null); const cancellationController = useRef<AbortController | null>(null); const recorder = useRef<MediaRecorder | null>(null); const stream = useRef<MediaStream | null>(null); const chunks = useRef<Blob[]>([]); const timer = useRef<number | null>(null); const levelTimer = useRef<number | null>(null); const input = useRef<HTMLInputElement>(null); const upload = trpc.audio.upload.useMutation(); const create = trpc.meetings.create.useMutation(); const transcribe = trpc.transcription.transcribe.useMutation(); const analyze = trpc.ai.analyze.useMutation(); const cancel = trpc.processing.cancel.useMutation(); useEffect(() => () => { if (timer.current) window.clearInterval(timer.current); if (levelTimer.current) window.clearInterval(levelTimer.current); stream.current?.getTracks().forEach(track => track.stop()); }, []); useEffect(() => { if (processingStage === "idle" || processingStage === "done" || processingStage === "cancelled") return; const interval = window.setInterval(() => setProcessingClock(Date.now()), 1000); return () => window.clearInterval(interval); }, [processingStage]); const finishBlob = (blob: Blob, name: string) => { setUrl(URL.createObjectURL(blob)); setFile(new File([blob], name, { type: blob.type || "audio/webm" })); setSize(blob.size); setAudioDuration(elapsed); }; const start = async () => { try { const media = await navigator.mediaDevices.getUserMedia({ audio: true }); stream.current = media; const rec = new MediaRecorder(media); recorder.current = rec; chunks.current = []; rec.ondataavailable = event => event.data.size && chunks.current.push(event.data); rec.onstop = () => { finishBlob(new Blob(chunks.current, { type: "audio/webm" }), "rekaman-rapat.webm"); media.getTracks().forEach(track => track.stop()); }; rec.start(); setRecording(true); setPaused(false); setElapsed(0); timer.current = window.setInterval(() => setElapsed(value => value + 1), 1000); const context = new AudioContext(); const analyser = context.createAnalyser(); const source = context.createMediaStreamSource(media); source.connect(analyser); const values = new Uint8Array(analyser.fftSize); levelTimer.current = window.setInterval(() => { analyser.getByteTimeDomainData(values); const rms = Math.sqrt(values.reduce((sum, value) => sum + Math.pow((value - 128) / 128, 2), 0) / values.length); setLevel(Math.min(100, Math.round(rms * 240))); }, 100); toast.success("Perekaman dimulai."); } catch { toast.error("Akses mikrofon tidak tersedia."); } }; const stop = () => { recorder.current?.stop(); setRecording(false); setPaused(false); if (timer.current) window.clearInterval(timer.current); if (levelTimer.current) window.clearInterval(levelTimer.current); }; const choose = (selected?: File) => { if (!selected) return; if (!selected.type.startsWith("audio/") && !/\.(mp3|wav|m4a|aac|ogg|flac|webm)$/i.test(selected.name)) return toast.error("Format audio belum didukung."); const nextUrl = URL.createObjectURL(selected); setUrl(nextUrl); setFile(selected); setSize(selected.size); const element = document.createElement("audio"); element.onloadedmetadata = () => setAudioDuration(Number.isFinite(element.duration) ? element.duration : 0); element.src = nextUrl; toast.success("File audio siap diproses."); }; const process = async () => { if (!url || !file) return toast.error("Rekam atau unggah audio terlebih dahulu."); cancelRequested.current = false; cancellationController.current = new AbortController(); const signal = cancellationController.current.signal; cancellationToken.current = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`; const token = cancellationToken.current; try { setProgress(12); setProcessingStartedAt(Date.now()); setProcessingClock(Date.now()); setProcessingStage("uploading"); const response = await abortable(fetch(url, { signal }), signal); const blob = await abortable(response.blob(), signal); if (cancelRequested.current) throw new Error(CANCELLATION_ERROR); const data = await abortable(dataUrlToBase64(blob), signal); setProgress(25); const meeting = await abortable(create.mutateAsync({ title: file.name.replace(/\.[^.]+$/, "") || "Rapat baru", agenda: "Dibuat dari rekaman audio.", attendees: [] }), signal); if (cancelRequested.current) throw new Error(CANCELLATION_ERROR); if (!meeting?.id) throw new Error("Rapat belum berhasil dibuat."); setProgress(42); const stored = await abortable(upload.mutateAsync({ fileName: file.name, mimeType: file.type || "audio/webm", data, cancellationToken: token || undefined }), signal); if (cancelRequested.current) throw new Error(CANCELLATION_ERROR); setProgress(62); setProcessingStage("transcribing"); const transcript = await abortable(transcribe.mutateAsync({ meetingId: meeting.id, audioUrl: stored.signedUrl, cancellationToken: token || undefined }), signal); if (cancelRequested.current) throw new Error(CANCELLATION_ERROR); setProgress(80); setProcessingStage("analyzing"); await abortable(analyze.mutateAsync({ meetingId: meeting.id, transcript: transcript.text, cancellationToken: token || undefined }), signal); if (cancelRequested.current) throw new Error(CANCELLATION_ERROR); setProgress(100); setProcessingStage("done"); refresh(); toast.success("Transkripsi dan analisis AI selesai."); onCreated(String(meeting.id)); } catch (error) { if (isCancellationError(error)) return; setProgress(0); setProcessingStartedAt(null); setProcessingStage("idle"); toast.error(error instanceof Error ? error.message : "Audio belum dapat diproses."); } }; const stageCopy = { idle: "Siap diproses", uploading: "Menyiapkan dan mengunggah audio", transcribing: "Mentranskripsikan percakapan", analyzing: "Menyusun ringkasan dan action item", done: "Pemrosesan selesai", cancelled: "Pemrosesan dibatalkan" } as const; const isProcessing = processingStage === "uploading" || processingStage === "transcribing" || processingStage === "analyzing"; const cancelProcess = () => { if (!isProcessing) return; cancelRequested.current = true; cancellationController.current?.abort(); const token = cancellationToken.current; if (token) void cancel.mutateAsync({ token }).catch(() => undefined); setProgress(0); setProcessingStartedAt(null); setProcessingStage("cancelled"); toast.info("Pemrosesan dibatalkan. Audio tetap tersedia untuk dicoba lagi."); }; const estimatedTotalSeconds = estimateProcessingSeconds(audioDuration, size); const processingElapsedSeconds = processingStartedAt ? Math.max(0, Math.floor((processingClock - processingStartedAt) / 1000)) : 0; const estimatedRemainingSeconds = estimateRemainingSeconds(estimatedTotalSeconds, processingStage, progress, processingElapsedSeconds); const stageIndex = processingStage === "uploading" ? 0 : processingStage === "transcribing" ? 1 : processingStage === "analyzing" ? 2 : processingStage === "done" ? 3 : -1; return <div className="mx-auto max-w-[1120px]"><Header eyebrow="Alat bantu" title="Rekam rapat" description="Rekam langsung dari browser atau unggah audio untuk memulai transkripsi dan analisis AI." action={<span className="inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-xs text-slate-500"><span className={`h-2 w-2 rounded-full ${level > 8 ? "bg-[#c35b6a]" : "bg-[#2a8d72]"}`} />Mikrofon {level > 8 ? "aktif" : "siap"}</span>} /><div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]"><Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardContent className="flex min-h-[420px] flex-col items-center justify-center p-8 text-center"><div className={`relative flex h-28 w-28 items-center justify-center rounded-full ${recording ? "bg-[#fbecee] text-[#c35b6a]" : "bg-[#f0effd] text-[#655bd7]"}`}><div className="flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-xl"><Mic className="h-8 w-8" /></div></div><p className="mt-8 font-display text-4xl font-semibold">{new Date(elapsed * 1000).toISOString().slice(11, 19)}</p><p className="mt-2 text-sm text-slate-400">{recording ? paused ? "Perekaman dijeda" : "Merekam percakapan..." : url ? "Audio siap ditinjau" : "Siap merekam kapan saja"}</p><div className="mt-7 flex h-12 items-center gap-1">{Array.from({ length: 28 }).map((_, index) => <span key={index} className="w-1 rounded-full bg-[#b9b3f5]" style={{ height: `${12 + ((index * 19) % 32) * (recording ? Math.max(0.45, level / 40) : 0.7)}px` }} />)}</div><div className="mt-8 flex gap-3">{!recording ? <Button onClick={() => void start()} className="rounded-xl bg-[#655bd7] hover:bg-[#554bc5]"><Mic className="mr-2 h-4 w-4" />Mulai merekam</Button> : <><Button variant="outline" className="rounded-xl" onClick={() => { if (paused) recorder.current?.resume(); else recorder.current?.pause(); setPaused(!paused); }}>{paused ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}{paused ? "Lanjutkan" : "Jeda"}</Button><Button className="rounded-xl bg-[#c35b6a] text-white hover:bg-[#b24f60]" onClick={stop}><Square className="mr-2 h-4 w-4 fill-current" />Selesai</Button></>}</div>{url && <div className="mt-7 flex w-full max-w-md items-center gap-3 rounded-xl border bg-[#fafaff] p-3 text-left"><FileAudio className="h-5 w-5 text-[#2a8d72]" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{file?.name}</p><p className="mt-1 text-[11px] text-slate-400">{(size / 1024 / 1024).toFixed(2)} MB · {audioDuration ? `${Math.round(audioDuration)} detik` : "Durasi belum tersedia"}</p></div><audio controls src={url} className="h-8 max-w-[170px]" /></div>}</CardContent></Card><div className="space-y-5"><Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardHeader><CardTitle className="text-base">Unggah rekaman</CardTitle><p className="text-xs text-slate-400">MP3, WAV, M4A, AAC, OGG, FLAC, atau WEBM.</p></CardHeader><CardContent><button onClick={() => input.current?.click()} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); choose(event.dataTransfer.files?.[0]); }} className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9d6fb] bg-[#fafaff] px-5 py-9 text-center hover:border-[#655bd7]"><input ref={input} type="file" accept="audio/*" className="hidden" onChange={event => choose(event.target.files?.[0])} /><UploadCloud className="h-8 w-8 text-[#655bd7]" /><p className="mt-3 text-sm font-semibold">Tarik file ke sini</p><p className="mt-1 text-xs text-slate-400">atau klik untuk memilih file</p></button></CardContent></Card><Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardContent className="p-5"><div className="flex items-center justify-between"><p className="text-sm font-semibold">{progress}%</p><span className="text-xs text-slate-400">{progress}%</span></div><Progress value={progress} className="mt-3 h-2" />{processingStage !== "idle" && <div className="mt-4 rounded-2xl border border-[#e4e1fb] bg-[#fafaff] p-4 text-left dark:border-white/10 dark:bg-white/5" role="status" aria-live="polite"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eeecff] text-[#655bd7] dark:bg-[#655bd7]/20">{processingStage === "done" ? <CheckCircle2 className="h-5 w-5" /> : <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" />}</span><div className="min-w-0 flex-1"><p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{stageCopy[processingStage]}</p><p className="mt-1 text-[11px] text-slate-400">{processingStage === "done" ? "Notulen siap ditinjau." : "Anda dapat tetap di halaman ini selama proses berlangsung."}</p></div><span className="text-xs font-bold text-[#655bd7]">{progress}%</span></div><div className="mt-4 grid grid-cols-3 gap-2">{["Upload", "Transkrip", "Analisis"].map((label, index) => <div key={label} className="flex items-center gap-2 text-[10px] font-semibold text-slate-400"><span className={`flex h-5 w-5 items-center justify-center rounded-full transition-colors ${stageIndex > index || processingStage === "done" ? "bg-[#2a8d72] text-white" : stageIndex === index ? "bg-[#655bd7] text-white animate-pulse motion-reduce:animate-none" : "bg-[#ebeaf4] text-slate-400 dark:bg-white/10"}`}>{stageIndex > index || processingStage === "done" ? <Check className="h-3 w-3" /> : index + 1}</span>{label}</div>)}</div></div>}{isProcessing && <Button variant="outline" className="mt-3 w-full rounded-xl border-[#e6b7bd] text-[#b24f60] hover:bg-[#fff5f6]" onClick={cancelProcess}>Batalkan proses</Button>}<div className="mt-3 flex justify-between text-[11px] text-slate-400"><span>Upload</span><span>Transkrip</span><span>Analisis</span></div><p className="mt-3 text-[11px] leading-5 text-slate-400">Meter ini menunjukkan tahap pemrosesan audio; upload file berjalan sebelum transkripsi dan analisis.</p><p className="mt-2 text-xs font-semibold text-[#655bd7]">{!url ? "Unggah audio untuk melihat estimasi selesai." : processingStage === "done" ? "Selesai diproses — notulen siap ditinjau." : processingStage === "idle" ? `Perkiraan selesai dalam sekitar ${formatEta(estimatedTotalSeconds)}.` : `Perkiraan selesai dalam sekitar ${formatEta(estimatedRemainingSeconds)}.`}</p><p className="mt-1 text-[10px] text-slate-400">Estimasi dihitung dari durasi audio {audioDuration ? `${Math.round(audioDuration)} detik` : "yang terdeteksi"} dan ukuran file {(size / 1024 / 1024).toFixed(2)} MB.</p><Button disabled={!url || isProcessing} onClick={() => void process()} className="mt-5 h-11 w-full rounded-xl bg-[#655bd7] hover:bg-[#554bc5]"><WandSparkles className="mr-2 h-4 w-4" />Proses dengan AI</Button></CardContent></Card></div></div></div>; }
+function Recorder({
+  onCreated,
+  refresh,
+}: {
+  onCreated: (id: string) => void;
+  refresh: () => void;
+}) {
+  const [recording, setRecording] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [url, setUrl] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [size, setSize] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [level, setLevel] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [processingStage, setProcessingStage] = useState<
+    "idle" | "uploading" | "transcribing" | "analyzing" | "done" | "cancelled"
+  >("idle");
+  const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(
+    null
+  );
+  const [processingClock, setProcessingClock] = useState(() => Date.now());
+  const cancelRequested = useRef(false);
+  const cancellationToken = useRef<string | null>(null);
+  const cancellationController = useRef<AbortController | null>(null);
+  const recorder = useRef<MediaRecorder | null>(null);
+  const stream = useRef<MediaStream | null>(null);
+  const chunks = useRef<Blob[]>([]);
+  const timer = useRef<number | null>(null);
+  const levelTimer = useRef<number | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const upload = trpc.audio.upload.useMutation();
+  const create = trpc.meetings.create.useMutation();
+  const transcribe = trpc.transcription.transcribe.useMutation();
+  const analyze = trpc.ai.analyze.useMutation();
+  const cancel = trpc.processing.cancel.useMutation();
+  useEffect(
+    () => () => {
+      if (timer.current) window.clearInterval(timer.current);
+      if (levelTimer.current) window.clearInterval(levelTimer.current);
+      stream.current?.getTracks().forEach(track => track.stop());
+    },
+    []
+  );
+  useEffect(() => {
+    if (
+      processingStage === "idle" ||
+      processingStage === "done" ||
+      processingStage === "cancelled"
+    )
+      return;
+    const interval = window.setInterval(
+      () => setProcessingClock(Date.now()),
+      1000
+    );
+    return () => window.clearInterval(interval);
+  }, [processingStage]);
+  const finishBlob = (blob: Blob, name: string) => {
+    setUrl(URL.createObjectURL(blob));
+    setFile(new File([blob], name, { type: blob.type || "audio/webm" }));
+    setSize(blob.size);
+    setAudioDuration(elapsed);
+  };
+  const start = async () => {
+    try {
+      const media = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.current = media;
+      const rec = new MediaRecorder(media);
+      recorder.current = rec;
+      chunks.current = [];
+      rec.ondataavailable = event =>
+        event.data.size && chunks.current.push(event.data);
+      rec.onstop = () => {
+        finishBlob(
+          new Blob(chunks.current, { type: "audio/webm" }),
+          "rekaman-rapat.webm"
+        );
+        media.getTracks().forEach(track => track.stop());
+      };
+      rec.start();
+      setRecording(true);
+      setPaused(false);
+      setElapsed(0);
+      timer.current = window.setInterval(
+        () => setElapsed(value => value + 1),
+        1000
+      );
+      const context = new AudioContext();
+      const analyser = context.createAnalyser();
+      const source = context.createMediaStreamSource(media);
+      source.connect(analyser);
+      const values = new Uint8Array(analyser.fftSize);
+      levelTimer.current = window.setInterval(() => {
+        analyser.getByteTimeDomainData(values);
+        const rms = Math.sqrt(
+          values.reduce(
+            (sum, value) => sum + Math.pow((value - 128) / 128, 2),
+            0
+          ) / values.length
+        );
+        setLevel(Math.min(100, Math.round(rms * 240)));
+      }, 100);
+      toast.success("Perekaman dimulai.");
+    } catch {
+      toast.error("Akses mikrofon tidak tersedia.");
+    }
+  };
+  const stop = () => {
+    recorder.current?.stop();
+    setRecording(false);
+    setPaused(false);
+    if (timer.current) window.clearInterval(timer.current);
+    if (levelTimer.current) window.clearInterval(levelTimer.current);
+  };
+  const choose = (selected?: File) => {
+    if (!selected) return;
+    if (
+      !selected.type.startsWith("audio/") &&
+      !/\.(mp3|wav|m4a|aac|ogg|flac|webm)$/i.test(selected.name)
+    )
+      return toast.error("Format audio belum didukung.");
+    const nextUrl = URL.createObjectURL(selected);
+    setUrl(nextUrl);
+    setFile(selected);
+    setSize(selected.size);
+    const element = document.createElement("audio");
+    element.onloadedmetadata = () =>
+      setAudioDuration(
+        Number.isFinite(element.duration) ? element.duration : 0
+      );
+    element.src = nextUrl;
+    toast.success("File audio siap diproses.");
+  };
+  const process = async () => {
+    if (!url || !file)
+      return toast.error("Rekam atau unggah audio terlebih dahulu.");
+    cancelRequested.current = false;
+    cancellationController.current = new AbortController();
+    const signal = cancellationController.current.signal;
+    cancellationToken.current =
+      globalThis.crypto?.randomUUID?.() ||
+      `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const token = cancellationToken.current;
+    try {
+      setProgress(12);
+      setProcessingStartedAt(Date.now());
+      setProcessingClock(Date.now());
+      setProcessingStage("uploading");
+      const response = await abortable(fetch(url, { signal }), signal);
+      const blob = await abortable(response.blob(), signal);
+      if (cancelRequested.current) throw new Error(CANCELLATION_ERROR);
+      const data = await abortable(dataUrlToBase64(blob), signal);
+      setProgress(25);
+      const meeting = await abortable(
+        create.mutateAsync({
+          title: file.name.replace(/\.[^.]+$/, "") || "Rapat baru",
+          agenda: "Dibuat dari rekaman audio.",
+          attendees: [],
+        }),
+        signal
+      );
+      if (cancelRequested.current) throw new Error(CANCELLATION_ERROR);
+      if (!meeting?.id) throw new Error("Rapat belum berhasil dibuat.");
+      setProgress(42);
+      const stored = await abortable(
+        upload.mutateAsync({
+          fileName: file.name,
+          mimeType: file.type || "audio/webm",
+          data,
+          cancellationToken: token || undefined,
+        }),
+        signal
+      );
+      if (cancelRequested.current) throw new Error(CANCELLATION_ERROR);
+      setProgress(62);
+      setProcessingStage("transcribing");
+      const transcript = await abortable(
+        transcribe.mutateAsync({
+          meetingId: meeting.id,
+          audioUrl: stored.signedUrl,
+          cancellationToken: token || undefined,
+        }),
+        signal
+      );
+      if (cancelRequested.current) throw new Error(CANCELLATION_ERROR);
+      setProgress(80);
+      setProcessingStage("analyzing");
+      await abortable(
+        analyze.mutateAsync({
+          meetingId: meeting.id,
+          transcript: transcript.text,
+          cancellationToken: token || undefined,
+        }),
+        signal
+      );
+      if (cancelRequested.current) throw new Error(CANCELLATION_ERROR);
+      setProgress(100);
+      setProcessingStage("done");
+      refresh();
+      toast.success("Transkripsi dan analisis AI selesai.");
+      onCreated(String(meeting.id));
+    } catch (error) {
+      if (isCancellationError(error)) return;
+      setProgress(0);
+      setProcessingStartedAt(null);
+      setProcessingStage("idle");
+      toast.error(
+        error instanceof Error ? error.message : "Audio belum dapat diproses."
+      );
+    }
+  };
+  const stageCopy = {
+    idle: "Siap diproses",
+    uploading: "Menyiapkan dan mengunggah audio",
+    transcribing: "Mentranskripsikan percakapan",
+    analyzing: "Menyusun ringkasan dan action item",
+    done: "Pemrosesan selesai",
+    cancelled: "Pemrosesan dibatalkan",
+  } as const;
+  const isProcessing =
+    processingStage === "uploading" ||
+    processingStage === "transcribing" ||
+    processingStage === "analyzing";
+  const cancelProcess = () => {
+    if (!isProcessing) return;
+    cancelRequested.current = true;
+    cancellationController.current?.abort();
+    const token = cancellationToken.current;
+    if (token) void cancel.mutateAsync({ token }).catch(() => undefined);
+    setProgress(0);
+    setProcessingStartedAt(null);
+    setProcessingStage("cancelled");
+    toast.info(
+      "Pemrosesan dibatalkan. Audio tetap tersedia untuk dicoba lagi."
+    );
+  };
+  const estimatedTotalSeconds = estimateProcessingSeconds(audioDuration, size);
+  const processingElapsedSeconds = processingStartedAt
+    ? Math.max(0, Math.floor((processingClock - processingStartedAt) / 1000))
+    : 0;
+  const estimatedRemainingSeconds = estimateRemainingSeconds(
+    estimatedTotalSeconds,
+    processingStage,
+    progress,
+    processingElapsedSeconds
+  );
+  const stageIndex =
+    processingStage === "uploading"
+      ? 0
+      : processingStage === "transcribing"
+        ? 1
+        : processingStage === "analyzing"
+          ? 2
+          : processingStage === "done"
+            ? 3
+            : -1;
+  return (
+    <div className="mx-auto max-w-[1120px]">
+      <Header
+        eyebrow="Alat bantu"
+        title="Rekam rapat"
+        description="Rekam langsung dari browser atau unggah audio untuk memulai transkripsi dan analisis AI."
+        action={
+          <span className="inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-xs text-slate-500">
+            <span
+              className={`h-2 w-2 rounded-full ${level > 8 ? "bg-[#c35b6a]" : "bg-[#2a8d72]"}`}
+            />
+            Mikrofon {level > 8 ? "aktif" : "siap"}
+          </span>
+        }
+      />
+      <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+        <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+          <CardContent className="flex min-h-[420px] flex-col items-center justify-center p-8 text-center">
+            <div
+              className={`relative flex h-28 w-28 items-center justify-center rounded-full ${recording ? "bg-[#fbecee] text-[#c35b6a]" : "bg-[#f0effd] text-[#655bd7]"}`}
+            >
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-xl">
+                <Mic className="h-8 w-8" />
+              </div>
+            </div>
+            <p className="mt-8 font-display text-4xl font-semibold">
+              {new Date(elapsed * 1000).toISOString().slice(11, 19)}
+            </p>
+            <p className="mt-2 text-sm text-slate-400">
+              {recording
+                ? paused
+                  ? "Perekaman dijeda"
+                  : "Merekam percakapan..."
+                : url
+                  ? "Audio siap ditinjau"
+                  : "Siap merekam kapan saja"}
+            </p>
+            <div className="mt-7 flex h-12 items-center gap-1">
+              {Array.from({ length: 28 }).map((_, index) => (
+                <span
+                  key={index}
+                  className="w-1 rounded-full bg-[#b9b3f5]"
+                  style={{
+                    height: `${12 + ((index * 19) % 32) * (recording ? Math.max(0.45, level / 40) : 0.7)}px`,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="mt-8 flex gap-3">
+              {!recording ? (
+                <Button
+                  onClick={() => void start()}
+                  className="rounded-xl bg-[#655bd7] hover:bg-[#554bc5]"
+                >
+                  <Mic className="mr-2 h-4 w-4" />
+                  Mulai merekam
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={() => {
+                      if (paused) recorder.current?.resume();
+                      else recorder.current?.pause();
+                      setPaused(!paused);
+                    }}
+                  >
+                    {paused ? (
+                      <Play className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Pause className="mr-2 h-4 w-4" />
+                    )}
+                    {paused ? "Lanjutkan" : "Jeda"}
+                  </Button>
+                  <Button
+                    className="rounded-xl bg-[#c35b6a] text-white hover:bg-[#b24f60]"
+                    onClick={stop}
+                  >
+                    <Square className="mr-2 h-4 w-4 fill-current" />
+                    Selesai
+                  </Button>
+                </>
+              )}
+            </div>
+            {url && (
+              <div className="mt-7 flex w-full max-w-md items-center gap-3 rounded-xl border bg-[#fafaff] p-3 text-left">
+                <FileAudio className="h-5 w-5 text-[#2a8d72]" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold">{file?.name}</p>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    {(size / 1024 / 1024).toFixed(2)} MB ·{" "}
+                    {audioDuration
+                      ? `${Math.round(audioDuration)} detik`
+                      : "Durasi belum tersedia"}
+                  </p>
+                </div>
+                <audio controls src={url} className="h-8 max-w-[170px]" />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <div className="space-y-5">
+          <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+            <CardHeader>
+              <CardTitle className="text-base">Unggah rekaman</CardTitle>
+              <p className="text-xs text-slate-400">
+                MP3, WAV, M4A, AAC, OGG, FLAC, atau WEBM.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <button
+                onClick={() => input.current?.click()}
+                onDragOver={event => event.preventDefault()}
+                onDrop={event => {
+                  event.preventDefault();
+                  choose(event.dataTransfer.files?.[0]);
+                }}
+                className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-[#d9d6fb] bg-[#fafaff] px-5 py-9 text-center hover:border-[#655bd7]"
+              >
+                <input
+                  ref={input}
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={event => choose(event.target.files?.[0])}
+                />
+                <UploadCloud className="h-8 w-8 text-[#655bd7]" />
+                <p className="mt-3 text-sm font-semibold">Tarik file ke sini</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  atau klik untuk memilih file
+                </p>
+              </button>
+            </CardContent>
+          </Card>
+          <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">{progress}%</p>
+                <span className="text-xs text-slate-400">{progress}%</span>
+              </div>
+              <Progress value={progress} className="mt-3 h-2" />
+              {processingStage !== "idle" && (
+                <div
+                  className="mt-4 rounded-2xl border border-[#e4e1fb] bg-[#fafaff] p-4 text-left dark:border-white/10 dark:bg-white/5"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eeecff] text-[#655bd7] dark:bg-[#655bd7]/20">
+                      {processingStage === "done" ? (
+                        <CheckCircle2 className="h-5 w-5" />
+                      ) : (
+                        <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" />
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        {stageCopy[processingStage]}
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        {processingStage === "done"
+                          ? "Notulen siap ditinjau."
+                          : "Anda dapat tetap di halaman ini selama proses berlangsung."}
+                      </p>
+                    </div>
+                    <span className="text-xs font-bold text-[#655bd7]">
+                      {progress}%
+                    </span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    {["Upload", "Transkrip", "Analisis"].map((label, index) => (
+                      <div
+                        key={label}
+                        className="flex items-center gap-2 text-[10px] font-semibold text-slate-400"
+                      >
+                        <span
+                          className={`flex h-5 w-5 items-center justify-center rounded-full transition-colors ${stageIndex > index || processingStage === "done" ? "bg-[#2a8d72] text-white" : stageIndex === index ? "bg-[#655bd7] text-white animate-pulse motion-reduce:animate-none" : "bg-[#ebeaf4] text-slate-400 dark:bg-white/10"}`}
+                        >
+                          {stageIndex > index || processingStage === "done" ? (
+                            <Check className="h-3 w-3" />
+                          ) : (
+                            index + 1
+                          )}
+                        </span>
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {isProcessing && (
+                <Button
+                  variant="outline"
+                  className="mt-3 w-full rounded-xl border-[#e6b7bd] text-[#b24f60] hover:bg-[#fff5f6]"
+                  onClick={cancelProcess}
+                >
+                  Batalkan proses
+                </Button>
+              )}
+              <div className="mt-3 flex justify-between text-[11px] text-slate-400">
+                <span>Upload</span>
+                <span>Transkrip</span>
+                <span>Analisis</span>
+              </div>
+              <p className="mt-3 text-[11px] leading-5 text-slate-400">
+                Meter ini menunjukkan tahap pemrosesan audio; upload file
+                berjalan sebelum transkripsi dan analisis.
+              </p>
+              <p className="mt-2 text-xs font-semibold text-[#655bd7]">
+                {!url
+                  ? "Unggah audio untuk melihat estimasi selesai."
+                  : processingStage === "done"
+                    ? "Selesai diproses — notulen siap ditinjau."
+                    : processingStage === "idle"
+                      ? `Perkiraan selesai dalam sekitar ${formatEta(estimatedTotalSeconds)}.`
+                      : `Perkiraan selesai dalam sekitar ${formatEta(estimatedRemainingSeconds)}.`}
+              </p>
+              <p className="mt-1 text-[10px] text-slate-400">
+                Estimasi dihitung dari durasi audio{" "}
+                {audioDuration
+                  ? `${Math.round(audioDuration)} detik`
+                  : "yang terdeteksi"}{" "}
+                dan ukuran file {(size / 1024 / 1024).toFixed(2)} MB.
+              </p>
+              <Button
+                disabled={!url || isProcessing}
+                onClick={() => void process()}
+                className="mt-5 h-11 w-full rounded-xl bg-[#655bd7] hover:bg-[#554bc5]"
+              >
+                <WandSparkles className="mr-2 h-4 w-4" />
+                Proses dengan AI
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-function SettingsPage() { return <div className="mx-auto max-w-[900px]"><Header eyebrow="Workspace" title="Pengaturan" description="Atur preferensi ruang kerja dan perilaku AI untuk rapat Anda." /><div className="grid gap-5"><Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardHeader><CardTitle className="text-base">Preferensi notulen</CardTitle></CardHeader><CardContent className="space-y-4"><div className="flex items-center justify-between"><div><p className="text-sm font-semibold">Bahasa transkripsi</p><p className="text-xs text-slate-400">Gunakan Bahasa Indonesia sebagai bahasa utama.</p></div><Select defaultValue="id"><SelectTrigger className="w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="id">Indonesia</SelectItem><SelectItem value="en">English</SelectItem></SelectContent></Select></div><Separator /><div className="flex items-center justify-between"><div><p className="text-sm font-semibold">Identifikasi pembicara</p><p className="text-xs text-slate-400">Deteksi pergantian speaker saat transkripsi.</p></div><Switch defaultChecked /></div><Separator /><div className="flex items-center justify-between"><div><p className="text-sm font-semibold">Konfirmasi sebelum analisis</p><p className="text-xs text-slate-400">Tinjau transkrip sebelum draft notulen dibuat.</p></div><Switch defaultChecked /></div></CardContent></Card><Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]"><CardHeader><CardTitle className="text-base">Integrasi AI</CardTitle><p className="text-xs text-slate-400">Kredensial diproses di server dan tidak terekspos ke browser.</p></CardHeader><CardContent><div className="flex items-center gap-3 rounded-xl border border-[#dfeee9] bg-[#f8fcfb] p-4"><WandSparkles className="h-5 w-5 text-[#2a8d72]" /><div className="flex-1"><p className="text-sm font-semibold">Gemini / Forge LLM</p><p className="text-xs text-slate-400">Analisis notulen terstruktur siap digunakan.</p></div><Badge className="border-0 bg-[#e7f5f1] text-[10px] text-[#2a8d72]">Server-side</Badge></div></CardContent></Card></div></div>; }
+function SettingsPage() {
+  return (
+    <div className="mx-auto max-w-[900px]">
+      <Header
+        eyebrow="Workspace"
+        title="Pengaturan"
+        description="Atur preferensi ruang kerja dan perilaku AI untuk rapat Anda."
+      />
+      <div className="grid gap-5">
+        <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+          <CardHeader>
+            <CardTitle className="text-base">Preferensi notulen</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Bahasa transkripsi</p>
+                <p className="text-xs text-slate-400">
+                  Gunakan Bahasa Indonesia sebagai bahasa utama.
+                </p>
+              </div>
+              <Select defaultValue="id">
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="id">Indonesia</SelectItem>
+                  <SelectItem value="en">English</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Identifikasi pembicara</p>
+                <p className="text-xs text-slate-400">
+                  Deteksi pergantian speaker saat transkripsi.
+                </p>
+              </div>
+              <Switch defaultChecked />
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">
+                  Konfirmasi sebelum analisis
+                </p>
+                <p className="text-xs text-slate-400">
+                  Tinjau transkrip sebelum draft notulen dibuat.
+                </p>
+              </div>
+              <Switch defaultChecked />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-[#e9eaf1] bg-white dark:border-white/10 dark:bg-[#141821]">
+          <CardHeader>
+            <CardTitle className="text-base">Integrasi AI</CardTitle>
+            <p className="text-xs text-slate-400">
+              Kredensial diproses di server dan tidak terekspos ke browser.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3 rounded-xl border border-[#dfeee9] bg-[#f8fcfb] p-4">
+              <WandSparkles className="h-5 w-5 text-[#2a8d72]" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold">Gemini / Forge LLM</p>
+                <p className="text-xs text-slate-400">
+                  Analisis notulen terstruktur siap digunakan.
+                </p>
+              </div>
+              <Badge className="border-0 bg-[#e7f5f1] text-[10px] text-[#2a8d72]">
+                Server-side
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
