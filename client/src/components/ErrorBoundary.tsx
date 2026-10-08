@@ -24,6 +24,15 @@ class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  private retry = () => {
+    try {
+      sessionStorage.setItem("notulen-recovery-pending", "true");
+    } catch {
+      // Storage may be unavailable in private browsing; reload still works.
+    }
+    window.location.reload();
+  };
+
   render() {
     if (this.state.hasError) {
       return (
@@ -56,7 +65,7 @@ class ErrorBoundary extends Component<Props, State> {
                   "Muat ulang halaman untuk mencoba menjalankan aplikasi kembali."}
               </p>
               <button
-                onClick={() => window.location.reload()}
+                onClick={this.retry}
                 className={cn(
                   "flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold",
                   "bg-primary text-primary-foreground shadow-lg shadow-primary/20",
