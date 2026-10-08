@@ -4,6 +4,9 @@ import { Component, ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
+  title?: string;
+  description?: string;
+  retryLabel?: string;
 }
 
 interface State {
@@ -31,7 +34,13 @@ class ErrorBoundary extends Component<Props, State> {
               className="text-destructive mb-6 flex-shrink-0"
             />
 
-            <h2 className="text-xl mb-4">An unexpected error occurred.</h2>
+            <h2 className="mb-3 text-center text-xl font-semibold">
+              {this.props.title ?? "Terjadi gangguan pada aplikasi"}
+            </h2>
+            <p className="mb-5 max-w-lg text-center text-sm text-muted-foreground">
+              {this.props.description ??
+                "Muat ulang halaman untuk mencoba menjalankan aplikasi kembali."}
+            </p>
 
             <div className="p-4 w-full rounded bg-muted overflow-auto mb-6">
               <pre className="text-sm text-muted-foreground whitespace-break-spaces">
@@ -48,7 +57,7 @@ class ErrorBoundary extends Component<Props, State> {
               )}
             >
               <RotateCcw size={16} />
-              Reload Page
+              {this.props.retryLabel ?? "Muat ulang halaman"}
             </button>
           </div>
         </div>

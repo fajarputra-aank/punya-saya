@@ -27,7 +27,13 @@ function App() {
       <ThemeProvider defaultTheme="light" switchable>
         <TooltipProvider>
           <Toaster position="top-right" richColors />
-          <Router />
+          <ErrorBoundary
+            title="Workspace tidak dapat dimuat"
+            description="Terjadi gangguan saat menampilkan halaman workspace. Data Anda tetap aman; coba muat ulang untuk melanjutkan."
+            retryLabel="Coba lagi"
+          >
+            <Router />
+          </ErrorBoundary>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
@@ -35,4 +41,3 @@ function App() {
 }
 
 export default App;
-
