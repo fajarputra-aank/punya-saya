@@ -51,11 +51,13 @@ import {
   abortable,
   isCancellationError,
 } from "@/lib/processing";
+import { getFilterEmptyMessage } from "@/lib/filter-utils";
 import {
   useEffect,
   useMemo,
   useRef,
   useState,
+  useTransition,
   type Dispatch,
   type SetStateAction,
 } from "react";
@@ -645,6 +647,7 @@ function MeetingsPage({
     "semua"
   );
   const [sort, setSort] = useStoredState("notulen-meetings-sort", "terbaru");
+  const [isFiltering, startFiltering] = useTransition();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
@@ -672,6 +675,11 @@ function MeetingsPage({
       const bDate = b.meetingDateRaw ? new Date(b.meetingDateRaw).getTime() : 0;
       return sort === "terlama" ? aDate - bDate : bDate - aDate;
     });
+  const emptyMessage = getFilterEmptyMessage(
+    "meeting",
+    meetings.length,
+    filtered.length
+  );
   const reset = () => {
     setTitle("");
     setDate("");
@@ -752,6 +760,7 @@ function MeetingsPage({
       toast.error("Rapat belum dapat dihapus.");
     }
   };
+  const applyFilter = (update: () => void) => startFiltering(update);
   return (
     <div className="mx-auto max-w-[1440px]">
       <Header
@@ -858,14 +867,19 @@ function MeetingsPage({
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 value={query}
-                onChange={event => setQuery(event.target.value)}
+                onChange={event =>
+                  applyFilter(() => setQuery(event.target.value))
+                }
                 placeholder="Cari judul, departemen, atau agenda..."
                 className="h-10 rounded-xl pl-9 text-sm"
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Filter className="h-4 w-4 text-slate-400" />
-              <Select value={status} onValueChange={setStatus}>
+              <Select
+                value={status}
+                onValueChange={value => applyFilter(() => setStatus(value))}
+              >
                 <SelectTrigger className="h-10 w-40 rounded-xl text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -877,7 +891,10 @@ function MeetingsPage({
                   <SelectItem value="Diarsipkan">Diarsipkan</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={sort} onValueChange={setSort}>
+              <Select
+                value={sort}
+                onValueChange={value => applyFilter(() => setSort(value))}
+              >
                 <SelectTrigger className="h-10 w-44 rounded-xl text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -892,103 +909,117 @@ function MeetingsPage({
           </div>
         </CardContent>
         <Separator />
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Rapat</TableHead>
-                <TableHead>Tanggal</TableHead>
-                <TableHead>Durasi</TableHead>
-                <TableHead>Peserta</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(meeting => (
-                <TableRow
-                  key={meeting.id}
-                  className="group cursor-pointer"
-                  onClick={() => onOpen(meeting.id)}
-                >
-                  <TableCell className="pl-6">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0effd] text-[#655bd7]">
-                        <FileText className="h-4 w-4" />
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold">{meeting.title}</p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {meeting.department} · {meeting.location}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs text-slate-500">
-                    {meeting.date}
-                    <p className="mt-1 text-[11px] text-slate-400">
-                      {meeting.time}
-                    </p>
-                  </TableCell>
-                  <TableCell className="text-xs text-slate-500">
-                    {meeting.duration}
-                  </TableCell>
-                  <TableCell className="text-xs text-slate-500">
-                    {meeting.attendees}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      className={`border-0 text-[10px] ${statusStyles[meeting.status]}`}
-                    >
-                      {meeting.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="pr-5 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                          onClick={event => event.stopPropagation()}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="w-44 rounded-xl"
-                      >
-                        <DropdownMenuItem onClick={() => void edit(meeting)}>
-                          Edit judul
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => void duplicate(meeting)}
-                        >
-                          Duplikasi
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => void archive(meeting)}>
-                          Arsipkan
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => void removeMeeting(meeting)}
-                        >
-                          Hapus
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {filtered.length === 0 && (
-            <div className="px-6 py-16 text-center text-sm text-slate-400">
-              Belum ada rapat yang cocok dengan pencarian.
+        <div className="relative overflow-x-auto">
+          {isFiltering && (
+            <div className="absolute right-5 top-3 z-10 inline-flex items-center gap-2 rounded-full border border-[#e1def7] bg-white/95 px-3 py-1.5 text-[11px] font-medium text-[#655bd7] shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#141821]/95">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Memperbarui tampilan…
             </div>
           )}
+          <div
+            className={`transition-opacity duration-200 ${isFiltering ? "opacity-55" : "opacity-100"}`}
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Rapat</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Durasi</TableHead>
+                  <TableHead>Peserta</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(meeting => (
+                  <TableRow
+                    key={meeting.id}
+                    className="group cursor-pointer"
+                    onClick={() => onOpen(meeting.id)}
+                  >
+                    <TableCell className="pl-6">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0effd] text-[#655bd7]">
+                          <FileText className="h-4 w-4" />
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold">
+                            {meeting.title}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {meeting.department} · {meeting.location}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-500">
+                      {meeting.date}
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        {meeting.time}
+                      </p>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-500">
+                      {meeting.duration}
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-500">
+                      {meeting.attendees}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={`border-0 text-[10px] ${statusStyles[meeting.status]}`}
+                      >
+                        {meeting.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="pr-5 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                            onClick={event => event.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-44 rounded-xl"
+                        >
+                          <DropdownMenuItem onClick={() => void edit(meeting)}>
+                            Edit judul
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => void duplicate(meeting)}
+                          >
+                            Duplikasi
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => void archive(meeting)}
+                          >
+                            Arsipkan
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => void removeMeeting(meeting)}
+                          >
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {filtered.length === 0 && (
+              <div className="px-6 py-16 text-center text-sm text-slate-400">
+                {emptyMessage}
+              </div>
+            )}
+          </div>
         </div>
       </Card>
     </div>
@@ -1472,9 +1503,11 @@ function MeetingDetail({
 function ActionList({
   actions,
   setActions,
+  emptyMessage = "Belum ada action item. Action item akan dibuat dari keputusan dan tindak lanjut rapat.",
 }: {
   actions: ActionItem[];
   setActions: Dispatch<SetStateAction<ActionItem[]>>;
+  emptyMessage?: string;
 }) {
   const update = trpc.actionItems.update.useMutation();
   const utils = trpc.useUtils();
@@ -1577,8 +1610,7 @@ function ActionList({
             ))
           ) : (
             <div className="px-5 py-12 text-center text-sm text-slate-400">
-              Belum ada action item. Action item akan dibuat dari keputusan dan
-              tindak lanjut rapat.
+              {emptyMessage}
             </div>
           )}
         </div>
@@ -1697,6 +1729,7 @@ function ActionPage({
     "semua"
   );
   const [sort, setSort] = useStoredState("notulen-actions-sort", "terdekat");
+  const [isFiltering, startFiltering] = useTransition();
   const filtered = actions
     .filter(
       item =>
@@ -1720,6 +1753,12 @@ function ActionPage({
           : Date.parse(value) || Number.MAX_SAFE_INTEGER;
       return parse(a.due) - parse(b.due);
     });
+  const emptyMessage = getFilterEmptyMessage(
+    "action",
+    actions.length,
+    filtered.length
+  );
+  const applyFilter = (update: () => void) => startFiltering(update);
   return (
     <div className="mx-auto max-w-[1100px]">
       <Header
@@ -1779,12 +1818,17 @@ function ActionPage({
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               value={query}
-              onChange={event => setQuery(event.target.value)}
+              onChange={event =>
+                applyFilter(() => setQuery(event.target.value))
+              }
               placeholder="Cari tugas, rapat, atau PIC..."
               className="h-9 rounded-xl pl-9 text-xs"
             />
           </div>
-          <Select value={filter} onValueChange={setFilter}>
+          <Select
+            value={filter}
+            onValueChange={value => applyFilter(() => setFilter(value))}
+          >
             <SelectTrigger className="h-9 w-40 rounded-xl text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -1795,7 +1839,10 @@ function ActionPage({
               <SelectItem value="Selesai">Selesai</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={priority} onValueChange={setPriority}>
+          <Select
+            value={priority}
+            onValueChange={value => applyFilter(() => setPriority(value))}
+          >
             <SelectTrigger className="h-9 w-36 rounded-xl text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -1806,7 +1853,10 @@ function ActionPage({
               <SelectItem value="Rendah">Rendah</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={sort} onValueChange={setSort}>
+          <Select
+            value={sort}
+            onValueChange={value => applyFilter(() => setSort(value))}
+          >
             <SelectTrigger className="h-9 w-40 rounded-xl text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -1819,7 +1869,23 @@ function ActionPage({
           </Select>
         </div>
       </div>
-      <ActionList actions={filtered} setActions={setActions} />
+      <div className="relative">
+        {isFiltering && (
+          <div className="absolute right-5 top-3 z-10 inline-flex items-center gap-2 rounded-full border border-[#e1def7] bg-white/95 px-3 py-1.5 text-[11px] font-medium text-[#655bd7] shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#141821]/95">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Memperbarui tampilan…
+          </div>
+        )}
+        <div
+          className={`transition-opacity duration-200 ${isFiltering ? "opacity-55" : "opacity-100"}`}
+        >
+          <ActionList
+            actions={filtered}
+            setActions={setActions}
+            emptyMessage={emptyMessage ?? undefined}
+          />
+        </div>
+      </div>
     </div>
   );
 }
